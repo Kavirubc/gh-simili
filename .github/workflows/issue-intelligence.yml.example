@@ -1,0 +1,24 @@
+# Copy this file to your repository as .github/workflows/issue-intelligence.yml
+name: Issue Intelligence
+
+on:
+  issues:
+    types: [opened, edited, closed, reopened, deleted]
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Issue Intelligence Bot
+        uses: youruser/gh-simili@v1
+        with:
+          config_path: .github/simili.yaml
+          # dry_run: true  # Uncomment to test without making changes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}  # Optional fallback
+          QDRANT_URL: ${{ secrets.QDRANT_URL }}
+          QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
