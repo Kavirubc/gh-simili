@@ -144,7 +144,7 @@ func FormatSimilarityComment(results []vectordb.SearchResult, crossRepo bool) st
 
 	sb.WriteString("\nIf any of these address your problem, please let us know and we can close this as a duplicate.\n\n")
 	sb.WriteString("---\n")
-	sb.WriteString("<sub>🤖 gh-simili Issue Intelligence</sub>")
+	sb.WriteString("<sub>🤖 Powered by [Simili](https://github.com/Kavirubc/gh-simili)</sub>")
 
 	return sb.String()
 }

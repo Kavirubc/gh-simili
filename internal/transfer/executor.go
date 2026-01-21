@@ -88,7 +88,7 @@ func formatTransferComment(targetRepo string, rule *config.TransferRule) string 
 The discussion will continue there. Thanks for your report!
 
 ---
-<sub>🤖 gh-simili Issue Intelligence</sub>`, targetRepo, matchDesc)
+<sub>🤖 Powered by [Simili](https://github.com/Kavirubc/gh-simili)</sub>`, targetRepo, matchDesc)
 }
 
 // formatMatchDescription creates a human-readable match description
