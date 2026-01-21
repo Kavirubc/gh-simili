@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/kaviruhapuarachchi/gh-simili/pkg/models"
+	"github.com/Kavirubc/gh-simili/pkg/models"
 )
 
 // Event represents a GitHub webhook event

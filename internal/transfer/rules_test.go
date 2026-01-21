@@ -3,8 +3,8 @@ package transfer
 import (
 	"testing"
 
-	"github.com/kaviruhapuarachchi/gh-simili/internal/config"
-	"github.com/kaviruhapuarachchi/gh-simili/pkg/models"
+	"github.com/Kavirubc/gh-simili/internal/config"
+	"github.com/Kavirubc/gh-simili/pkg/models"
 )
 
 func TestRuleMatcher_Match_Labels(t *testing.T) {

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/kaviruhapuarachchi/gh-simili/internal/config"
-	"github.com/kaviruhapuarachchi/gh-simili/internal/processor"
+	"github.com/Kavirubc/gh-simili/internal/config"
+	"github.com/Kavirubc/gh-simili/internal/processor"
 	"github.com/spf13/cobra"
 )
 

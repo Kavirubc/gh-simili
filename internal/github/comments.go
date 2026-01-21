@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-const botSignature = "gh-simili Issue Intelligence"
+const botSignature = "Simili"
 
 // ListComments fetches comments on an issue
 func (c *Client) ListComments(ctx context.Context, org, repo string, number int) ([]Comment, error) {

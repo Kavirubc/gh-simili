@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/kaviruhapuarachchi/gh-simili/internal/config"
+	"github.com/Kavirubc/gh-simili/internal/config"
 )
 
 // FallbackProvider wraps primary and fallback providers

@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/kaviruhapuarachchi/gh-simili/pkg/models"
+	"github.com/Kavirubc/gh-simili/pkg/models"
 )
 
 // ListOptions configures issue listing

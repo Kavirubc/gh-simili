@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/kaviruhapuarachchi/gh-simili/internal/config"
-	"github.com/kaviruhapuarachchi/gh-simili/internal/embedding"
-	"github.com/kaviruhapuarachchi/gh-simili/internal/vectordb"
-	"github.com/kaviruhapuarachchi/gh-simili/pkg/models"
+	"github.com/Kavirubc/gh-simili/internal/config"
+	"github.com/Kavirubc/gh-simili/internal/embedding"
+	"github.com/Kavirubc/gh-simili/internal/vectordb"
+	"github.com/Kavirubc/gh-simili/pkg/models"
 	"github.com/qdrant/go-client/qdrant"
 )
 
@@ -144,7 +144,7 @@ func FormatSimilarityComment(results []vectordb.SearchResult, crossRepo bool) st
 
 	sb.WriteString("\nIf any of these address your problem, please let us know and we can close this as a duplicate.\n\n")
 	sb.WriteString("---\n")
-	sb.WriteString("<sub>🤖 gh-simili Issue Intelligence</sub>")
+	sb.WriteString("<sub>🤖 Powered by [Simili](https://github.com/Kavirubc/gh-simili)</sub>")
 
 	return sb.String()
 }

@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/kaviruhapuarachchi/gh-simili/internal/config"
-	"github.com/kaviruhapuarachchi/gh-simili/internal/embedding"
-	"github.com/kaviruhapuarachchi/gh-simili/internal/github"
-	"github.com/kaviruhapuarachchi/gh-simili/internal/transfer"
-	"github.com/kaviruhapuarachchi/gh-simili/internal/vectordb"
-	"github.com/kaviruhapuarachchi/gh-simili/pkg/models"
+	"github.com/Kavirubc/gh-simili/internal/config"
+	"github.com/Kavirubc/gh-simili/internal/embedding"
+	"github.com/Kavirubc/gh-simili/internal/github"
+	"github.com/Kavirubc/gh-simili/internal/transfer"
+	"github.com/Kavirubc/gh-simili/internal/vectordb"
+	"github.com/Kavirubc/gh-simili/pkg/models"
 )
 
 // Processor handles single issue event processing

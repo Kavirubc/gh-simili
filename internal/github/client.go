@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/cli/go-gh/v2/pkg/api"
-	"github.com/kaviruhapuarachchi/gh-simili/pkg/models"
+	"github.com/Kavirubc/gh-simili/pkg/models"
 )
 
 // Client wraps GitHub API operations

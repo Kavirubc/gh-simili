@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/kaviruhapuarachchi/gh-simili/internal/config"
-	"github.com/kaviruhapuarachchi/gh-simili/internal/github"
-	"github.com/kaviruhapuarachchi/gh-simili/internal/vectordb"
-	"github.com/kaviruhapuarachchi/gh-simili/pkg/models"
+	"github.com/Kavirubc/gh-simili/internal/config"
+	"github.com/Kavirubc/gh-simili/internal/github"
+	"github.com/Kavirubc/gh-simili/internal/vectordb"
+	"github.com/Kavirubc/gh-simili/pkg/models"
 )
 
 // Executor handles issue transfers
@@ -88,7 +88,7 @@ func formatTransferComment(targetRepo string, rule *config.TransferRule) string 
 The discussion will continue there. Thanks for your report!
 
 ---
-<sub>🤖 gh-simili Issue Intelligence</sub>`, targetRepo, matchDesc)
+<sub>🤖 Powered by [Simili](https://github.com/Kavirubc/gh-simili)</sub>`, targetRepo, matchDesc)
 }
 
 // formatMatchDescription creates a human-readable match description
