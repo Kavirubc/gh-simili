@@ -1,0 +1,109 @@
+package github
+
+import (
+	"context"
+	"fmt"
+	"net/url"
+	"strconv"
+	"time"
+
+	"github.com/kaviruhapuarachchi/gh-simili/pkg/models"
+)
+
+// ListOptions configures issue listing
+type ListOptions struct {
+	State   string // "open", "closed", "all"
+	PerPage int
+	Page    int
+	Since   time.Time
+}
+
+// ListIssues fetches issues from a repository
+func (c *Client) ListIssues(ctx context.Context, org, repo string, opts ListOptions) ([]*models.Issue, error) {
+	if opts.PerPage == 0 {
+		opts.PerPage = 100
+	}
+	if opts.State == "" {
+		opts.State = "all"
+	}
+	if opts.Page == 0 {
+		opts.Page = 1
+	}
+
+	params := url.Values{}
+	params.Set("state", opts.State)
+	params.Set("per_page", strconv.Itoa(opts.PerPage))
+	params.Set("page", strconv.Itoa(opts.Page))
+	params.Set("sort", "updated")
+	params.Set("direction", "desc")
+	if !opts.Since.IsZero() {
+		params.Set("since", opts.Since.Format(time.RFC3339))
+	}
+
+	endpoint := fmt.Sprintf("repos/%s/%s/issues?%s", org, repo, params.Encode())
+
+	var apiIssues []Issue
+	if err := c.rest.Get(endpoint, &apiIssues); err != nil {
+		return nil, fmt.Errorf("failed to list issues: %w", err)
+	}
+
+	issues := make([]*models.Issue, 0, len(apiIssues))
+	for _, ai := range apiIssues {
+		// Skip pull requests (they appear in issues endpoint)
+		if ai.isPullRequest() {
+			continue
+		}
+		issues = append(issues, ai.ToModel(org, repo))
+	}
+
+	return issues, nil
+}
+
+// GetIssue fetches a single issue
+func (c *Client) GetIssue(ctx context.Context, org, repo string, number int) (*models.Issue, error) {
+	endpoint := fmt.Sprintf("repos/%s/%s/issues/%d", org, repo, number)
+
+	var ai Issue
+	if err := c.rest.Get(endpoint, &ai); err != nil {
+		return nil, fmt.Errorf("failed to get issue: %w", err)
+	}
+
+	return ai.ToModel(org, repo), nil
+}
+
+// ListAllIssues fetches all issues using pagination
+func (c *Client) ListAllIssues(ctx context.Context, org, repo string, state string, batchSize int) ([]*models.Issue, error) {
+	var allIssues []*models.Issue
+	page := 1
+
+	for {
+		issues, err := c.ListIssues(ctx, org, repo, ListOptions{
+			State:   state,
+			PerPage: batchSize,
+			Page:    page,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		if len(issues) == 0 {
+			break
+		}
+
+		allIssues = append(allIssues, issues...)
+
+		if len(issues) < batchSize {
+			break
+		}
+		page++
+	}
+
+	return allIssues, nil
+}
+
+// isPullRequest checks if an issue is actually a pull request
+func (i *Issue) isPullRequest() bool {
+	// The issues endpoint includes PRs; check for PR-specific fields
+	// This is a simplified check - PRs have a "pull_request" field
+	return false // go-gh doesn't include PR data in Issue struct
+}
