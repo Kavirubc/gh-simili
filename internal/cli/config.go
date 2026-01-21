@@ -3,7 +3,7 @@ package cli
 import (
 	"fmt"
 
-	"github.com/kaviruhapuarachchi/gh-simili/internal/config"
+	"github.com/Kavirubc/gh-simili/internal/config"
 	"github.com/spf13/cobra"
 )
 

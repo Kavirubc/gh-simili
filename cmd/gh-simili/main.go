@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/kaviruhapuarachchi/gh-simili/internal/cli"
+	"github.com/Kavirubc/gh-simili/internal/cli"
 )
 
 func main() {

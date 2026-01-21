@@ -6,7 +6,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/kaviruhapuarachchi/gh-simili/pkg/models"
+	"github.com/Kavirubc/gh-simili/pkg/models"
 	"github.com/qdrant/go-client/qdrant"
 )
 

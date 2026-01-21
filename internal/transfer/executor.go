@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/kaviruhapuarachchi/gh-simili/internal/config"
-	"github.com/kaviruhapuarachchi/gh-simili/internal/github"
-	"github.com/kaviruhapuarachchi/gh-simili/internal/vectordb"
-	"github.com/kaviruhapuarachchi/gh-simili/pkg/models"
+	"github.com/Kavirubc/gh-simili/internal/config"
+	"github.com/Kavirubc/gh-simili/internal/github"
+	"github.com/Kavirubc/gh-simili/internal/vectordb"
+	"github.com/Kavirubc/gh-simili/pkg/models"
 )
 
 // Executor handles issue transfers

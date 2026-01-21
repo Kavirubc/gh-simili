@@ -1,4 +1,4 @@
-module github.com/kaviruhapuarachchi/gh-simili
+module github.com/Kavirubc/gh-simili
 
 go 1.23
 
