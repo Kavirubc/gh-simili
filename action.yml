@@ -21,7 +21,7 @@ runs:
   args:
     - process
     - --event-path
-    - ${{ github.event_path }}
+    - /github/workflow/event.json
     - --config
     - ${{ inputs.config_path }}
     - ${{ inputs.dry_run == 'true' && '--dry-run' || '' }}
