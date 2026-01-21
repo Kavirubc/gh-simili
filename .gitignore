@@ -1,0 +1,32 @@
+# Binaries
+gh-simili
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary
+*.test
+
+# Output of go coverage
+*.out
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Config with secrets
+config.yaml
+simili.yaml
+.env
+
+# Build artifacts
+dist/
