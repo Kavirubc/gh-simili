@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/kaviruhapuarachchi/gh-simili/internal/config"
-	"github.com/kaviruhapuarachchi/gh-simili/pkg/models"
 	"github.com/qdrant/go-client/qdrant"
 )
 
@@ -65,12 +64,4 @@ func (c *Client) Close() error {
 // CollectionName returns the collection name for an org
 func CollectionName(org string) string {
 	return fmt.Sprintf("%s_issues", org)
-}
-
-// IssuePoint represents a point to upsert
-type IssuePoint struct {
-	ID      string
-	Vector  []float32
-	Issue   *models.Issue
-	Payload map[string]interface{}
 }

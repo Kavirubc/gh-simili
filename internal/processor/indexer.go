@@ -3,7 +3,6 @@ package processor
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/kaviruhapuarachchi/gh-simili/internal/config"
@@ -159,13 +158,4 @@ func (idx *Indexer) DeleteIssue(ctx context.Context, org, repo string, number in
 	collection := vectordb.CollectionName(org)
 	id := models.IssueUUID(org, repo, number)
 	return idx.vdb.Delete(ctx, collection, id)
-}
-
-// GetRepoFromContext extracts org/repo from various formats
-func GetRepoFromContext(input string) (string, string, error) {
-	parts := strings.Split(input, "/")
-	if len(parts) == 2 {
-		return parts[0], parts[1], nil
-	}
-	return "", "", fmt.Errorf("invalid repo format: %s", input)
 }

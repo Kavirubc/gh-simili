@@ -101,9 +101,12 @@ func (c *Client) ListAllIssues(ctx context.Context, org, repo string, state stri
 	return allIssues, nil
 }
 
-// isPullRequest checks if an issue is actually a pull request
+// isPullRequest checks if an issue is actually a pull request.
+// NOTE: The GitHub /issues endpoint includes pull requests, but the go-gh Issue
+// struct does not expose the "pull_request" field from the API response.
+// As a result, this function always returns false and PRs will be indexed
+// alongside issues. This is acceptable for similarity search purposes since
+// PRs often contain relevant context about code changes.
 func (i *Issue) isPullRequest() bool {
-	// The issues endpoint includes PRs; check for PR-specific fields
-	// This is a simplified check - PRs have a "pull_request" field
-	return false // go-gh doesn't include PR data in Issue struct
+	return false
 }

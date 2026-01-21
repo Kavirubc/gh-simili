@@ -50,7 +50,7 @@ func newSyncCmd() *cobra.Command {
 				return fmt.Errorf("sync failed: %w", err)
 			}
 
-			fmt.Printf("Synced %d issues (%d updated, %d deleted) in %dms\n",
+			fmt.Printf("Synced %d issues (%d updated, %d skipped) in %dms\n",
 				stats.TotalIssues, stats.Indexed, stats.Skipped, stats.DurationMs)
 
 			return nil

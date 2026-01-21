@@ -43,10 +43,20 @@ func (sf *SimilarityFinder) FindSimilar(ctx context.Context, issue *models.Issue
 
 	var filter *qdrant.Filter
 	if excludeSelf {
-		// Exclude the issue itself from results
+		// Exclude the issue itself from results (must match all: org, repo, and number)
 		filter = &qdrant.Filter{
 			MustNot: []*qdrant.Condition{
-				qdrant.NewMatchInt("number", int64(issue.Number)),
+				{
+					ConditionOneOf: &qdrant.Condition_Filter{
+						Filter: &qdrant.Filter{
+							Must: []*qdrant.Condition{
+								qdrant.NewMatchKeyword("org", issue.Org),
+								qdrant.NewMatchKeyword("repo", issue.Repo),
+								qdrant.NewMatchInt("number", int64(issue.Number)),
+							},
+						},
+					},
+				},
 			},
 		}
 	}
