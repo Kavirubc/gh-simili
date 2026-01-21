@@ -1,0 +1,27 @@
+name: 'gh-simili Issue Intelligence'
+description: 'Auto-detect duplicates and transfer issues based on rules'
+author: 'gh-simili'
+branding:
+  icon: 'search'
+  color: 'purple'
+
+inputs:
+  config_path:
+    description: 'Path to config file'
+    required: false
+    default: '.github/simili.yaml'
+  dry_run:
+    description: 'Run without making changes (read-only)'
+    required: false
+    default: 'false'
+
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
+  args:
+    - process
+    - --event-path
+    - ${{ github.event_path }}
+    - --config
+    - ${{ inputs.config_path }}
+    - ${{ inputs.dry_run == 'true' && '--dry-run' || '' }}
