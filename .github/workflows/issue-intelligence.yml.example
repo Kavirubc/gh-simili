@@ -12,7 +12,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run Issue Intelligence Bot
-        uses: youruser/gh-simili@v1
+        uses: Kavirubc/gh-simili@v1
         with:
           config_path: .github/simili.yaml
           # dry_run: true  # Uncomment to test without making changes
