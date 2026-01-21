@@ -1,19 +1,24 @@
-name: 'gh-simili Issue Intelligence'
-description: 'Auto-detect duplicates and transfer issues based on rules'
-author: 'gh-simili'
+name: 'Simili - Issue Intelligence'
+description: 'Automatically detect duplicate issues and find similar issues using AI-powered semantic search. Supports cross-repo search and issue transfer rules.'
+author: 'Kavirubc'
+
 branding:
   icon: 'search'
   color: 'purple'
 
 inputs:
   config_path:
-    description: 'Path to config file'
+    description: 'Path to the simili configuration file'
     required: false
     default: '.github/simili.yaml'
   dry_run:
-    description: 'Run without making changes (read-only)'
+    description: 'Run in read-only mode without posting comments or making changes'
     required: false
     default: 'false'
+  github_token:
+    description: 'GitHub token for API access. Use a GitHub App token for custom bot name.'
+    required: false
+    default: ${{ github.token }}
 
 runs:
   using: 'docker'
@@ -25,3 +30,5 @@ runs:
     - --config
     - ${{ inputs.config_path }}
     - ${{ inputs.dry_run == 'true' && '--dry-run' || '' }}
+  env:
+    GITHUB_TOKEN: ${{ inputs.github_token }}
