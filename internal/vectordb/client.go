@@ -44,7 +44,7 @@ func parseHostPort(url string) (string, int) {
 	if idx := strings.LastIndex(url, ":"); idx != -1 {
 		host := url[:idx]
 		var port int
-		fmt.Sscanf(url[idx+1:], "%d", &port)
+		_, _ = fmt.Sscanf(url[idx+1:], "%d", &port)
 		if port == 0 {
 			port = 6334
 		}

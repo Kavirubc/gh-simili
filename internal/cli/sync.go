@@ -59,7 +59,7 @@ func newSyncCmd() *cobra.Command {
 
 	cmd.Flags().StringVar(&repo, "repo", "", "repository to sync (owner/repo)")
 	cmd.Flags().StringVar(&since, "since", "24h", "sync issues updated since (e.g., 24h, 7d)")
-	cmd.MarkFlagRequired("repo")
+	_ = cmd.MarkFlagRequired("repo")
 
 	return cmd
 }

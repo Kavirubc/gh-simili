@@ -59,7 +59,7 @@ func newIndexCmd() *cobra.Command {
 
 	cmd.Flags().StringVar(&repo, "repo", "", "repository to index (owner/repo)")
 	cmd.Flags().IntVar(&batchSize, "batch-size", 100, "number of issues to fetch per batch")
-	cmd.MarkFlagRequired("repo")
+	_ = cmd.MarkFlagRequired("repo")
 
 	return cmd
 }

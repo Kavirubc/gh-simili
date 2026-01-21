@@ -69,7 +69,7 @@ func newProcessCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&eventPath, "event-path", "", "path to GitHub event JSON file")
-	cmd.MarkFlagRequired("event-path")
+	_ = cmd.MarkFlagRequired("event-path")
 
 	return cmd
 }

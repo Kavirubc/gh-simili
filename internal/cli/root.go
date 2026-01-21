@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 )
@@ -45,12 +44,5 @@ func newVersionCmd() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			fmt.Printf("gh-simili version %s\n", version)
 		},
-	}
-}
-
-func exitOnError(msg string, err error) {
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %v\n", msg, err)
-		os.Exit(1)
 	}
 }
