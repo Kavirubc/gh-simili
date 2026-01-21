@@ -1,0 +1,53 @@
+qdrant:
+  url: "${QDRANT_URL}"           # https://xxx.qdrant.io:6334 or localhost:6334
+  api_key: "${QDRANT_API_KEY}"   # Optional for self-hosted
+  use_grpc: true                 # Use gRPC (port 6334)
+
+embedding:
+  primary:
+    provider: "gemini"
+    model: "gemini-embedding-001"
+    api_key: "${GEMINI_API_KEY}"
+    dimensions: 768
+  fallback:
+    provider: "openai"
+    model: "text-embedding-3-small"
+    api_key: "${OPENAI_API_KEY}"
+    dimensions: 768
+
+defaults:
+  similarity_threshold: 0.82
+  max_similar_to_show: 5
+  include_closed_issues: true
+  closed_issue_weight: 0.9       # Reduce similarity score for closed issues
+  cross_repo_search: true        # Search all repos in same org
+  comment_cooldown_hours: 1      # Prevent spam on rapid open/close/reopen
+
+repositories:
+  - org: "myorg"
+    repo: "main-issues"
+    enabled: true
+    similarity_threshold: 0.82
+    transfer_rules:
+      - match:
+          labels: ["backend", "api"]
+        target: "myorg/backend-service"
+        priority: 1
+      - match:
+          title_contains: ["frontend", "UI", "CSS"]
+        target: "myorg/web-app"
+        priority: 2
+      - match:
+          body_contains: ["database", "SQL", "migration"]
+        target: "myorg/data-platform"
+        priority: 3
+
+  - org: "myorg"
+    repo: "backend-service"
+    enabled: true
+    similarity_threshold: 0.85
+
+rate_limits:
+  github_requests_per_second: 10
+  embedding_requests_per_second: 5
+  qdrant_requests_per_second: 50
