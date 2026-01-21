@@ -18,7 +18,7 @@ jobs:
         uses: cli/gh-extension-precompile@v2
         with:
           go_version: '1.23'
-          build_script_override: "go build -o dist/$1 ./cmd/gh-simili"
+          build_script_override: "script/build.sh"
 
   docker:
     runs-on: ubuntu-latest
