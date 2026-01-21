@@ -1,5 +1,5 @@
 name: 'Simili - Issue Intelligence'
-description: 'Automatically detect duplicate issues and find similar issues using AI-powered semantic search. Supports cross-repo search and issue transfer rules.'
+description: 'AI-powered duplicate detection and similar issue finder with cross-repo search.'
 author: 'Kavirubc'
 
 branding:
