@@ -16,7 +16,7 @@ type Client struct {
 	graphql *api.GraphQLClient
 }
 
-// NewClient creates a new GitHub client
+// NewClient creates a new GitHub client using default token (GITHUB_TOKEN env)
 func NewClient() (*Client, error) {
 	rest, err := api.DefaultRESTClient()
 	if err != nil {
@@ -26,6 +26,32 @@ func NewClient() (*Client, error) {
 	graphql, err := api.DefaultGraphQLClient()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create GraphQL client: %w", err)
+	}
+
+	return &Client{
+		rest:    rest,
+		graphql: graphql,
+	}, nil
+}
+
+// NewClientWithToken creates a new GitHub client with a specific token
+func NewClientWithToken(token string) (*Client, error) {
+	if token == "" {
+		return NewClient()
+	}
+
+	rest, err := api.NewRESTClient(api.ClientOptions{
+		AuthToken: token,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create REST client with token: %w", err)
+	}
+
+	graphql, err := api.NewGraphQLClient(api.ClientOptions{
+		AuthToken: token,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create GraphQL client with token: %w", err)
 	}
 
 	return &Client{
