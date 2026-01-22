@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/Kavirubc/gh-simili/internal/config"
 	"github.com/Kavirubc/gh-simili/internal/processor"
@@ -36,7 +37,9 @@ func newProcessCmd() *cobra.Command {
 				return fmt.Errorf("invalid configuration")
 			}
 
-			proc, err := processor.NewProcessor(cfg, dryRun)
+			// Use separate transfer token if provided (for elevated permissions)
+			transferToken := os.Getenv("TRANSFER_TOKEN")
+			proc, err := processor.NewProcessorWithTransferToken(cfg, dryRun, transferToken)
 			if err != nil {
 				return fmt.Errorf("failed to create processor: %w", err)
 			}
