@@ -19,6 +19,9 @@ inputs:
     description: 'GitHub token for API access. Use a GitHub App token for custom bot name.'
     required: false
     default: ${{ github.token }}
+  transfer_token:
+    description: 'GitHub token with elevated permissions for issue transfers. Falls back to github_token if not provided.'
+    required: false
 
 runs:
   using: 'docker'
@@ -32,3 +35,4 @@ runs:
     - ${{ inputs.dry_run == 'true' && '--dry-run' || '' }}
   env:
     GITHUB_TOKEN: ${{ inputs.github_token }}
+    TRANSFER_TOKEN: ${{ inputs.transfer_token }}

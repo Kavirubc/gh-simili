@@ -14,20 +14,37 @@ import (
 
 // Processor handles single issue event processing
 type Processor struct {
-	cfg        *config.Config
-	gh         *github.Client
-	embedder   *embedding.FallbackProvider
-	vdb        *vectordb.Client
-	similarity *SimilarityFinder
-	indexer    *Indexer
-	dryRun     bool
+	cfg            *config.Config
+	gh             *github.Client
+	transferClient *github.Client
+	embedder       *embedding.FallbackProvider
+	vdb            *vectordb.Client
+	similarity     *SimilarityFinder
+	indexer        *Indexer
+	dryRun         bool
 }
 
 // NewProcessor creates a new event processor
 func NewProcessor(cfg *config.Config, dryRun bool) (*Processor, error) {
+	return NewProcessorWithTransferToken(cfg, dryRun, "")
+}
+
+// NewProcessorWithTransferToken creates a processor with a separate token for transfers
+func NewProcessorWithTransferToken(cfg *config.Config, dryRun bool, transferToken string) (*Processor, error) {
 	gh, err := github.NewClient()
 	if err != nil {
 		return nil, err
+	}
+
+	// Create transfer client with separate token if provided
+	var transferClient *github.Client
+	if transferToken != "" {
+		transferClient, err = github.NewClientWithToken(transferToken)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create transfer client: %w", err)
+		}
+	} else {
+		transferClient = gh // Use same client if no separate token
 	}
 
 	embedder, err := embedding.NewFallbackProvider(&cfg.Embedding)
@@ -46,13 +63,14 @@ func NewProcessor(cfg *config.Config, dryRun bool) (*Processor, error) {
 	}
 
 	return &Processor{
-		cfg:        cfg,
-		gh:         gh,
-		embedder:   embedder,
-		vdb:        vdb,
-		similarity: NewSimilarityFinder(cfg, embedder, vdb),
-		indexer:    indexer,
-		dryRun:     dryRun,
+		cfg:            cfg,
+		gh:             gh,
+		transferClient: transferClient,
+		embedder:       embedder,
+		vdb:            vdb,
+		similarity:     NewSimilarityFinder(cfg, embedder, vdb),
+		indexer:        indexer,
+		dryRun:         dryRun,
 	}, nil
 }
 
@@ -162,7 +180,8 @@ func (p *Processor) processOpened(ctx context.Context, issue *models.Issue, repo
 	if len(repoConfig.TransferRules) > 0 {
 		matcher := transfer.NewRuleMatcher(repoConfig.TransferRules)
 		if target, rule := matcher.Match(issue); target != "" {
-			executor := transfer.NewExecutor(p.gh, p.vdb, p.dryRun)
+			// Use transferClient for transfers (may have elevated permissions)
+			executor := transfer.NewExecutor(p.transferClient, p.gh, p.vdb, p.dryRun)
 			if err := executor.Transfer(ctx, issue, target, rule); err != nil {
 				return nil, fmt.Errorf("failed to transfer issue: %w", err)
 			}
