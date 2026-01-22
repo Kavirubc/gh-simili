@@ -15,7 +15,7 @@ embedding:
     dimensions: 768
 
 defaults:
-  similarity_threshold: 0.80
+  similarity_threshold: 0.65
   max_similar_to_show: 5
   include_closed_issues: true
   closed_issue_weight: 0.9
@@ -31,7 +31,7 @@ repositories:
   - org: "similigh"
     repo: "nexusflow-core"
     enabled: true
-    similarity_threshold: 0.78
+    similarity_threshold: 0.65
     transfer_rules:
       # Documentation-related issues should go to docs repo
       - match:
@@ -81,7 +81,7 @@ repositories:
   - org: "similigh"
     repo: "nexusflow-docs"
     enabled: true
-    similarity_threshold: 0.78
+    similarity_threshold: 0.65
     transfer_rules:
       # Core server bugs should go to core repo
       - match:
@@ -127,7 +127,7 @@ repositories:
   - org: "similigh"
     repo: "nexusflow-cli"
     enabled: true
-    similarity_threshold: 0.78
+    similarity_threshold: 0.65
     transfer_rules:
       # Documentation issues go to docs
       - match:
@@ -169,7 +169,7 @@ repositories:
   - org: "similigh"
     repo: "nexusflow-vscode"
     enabled: true
-    similarity_threshold: 0.78
+    similarity_threshold: 0.65
     transfer_rules:
       # Documentation issues go to docs
       - match:
@@ -211,7 +211,7 @@ repositories:
   - org: "similigh"
     repo: "nexusflow-sdk"
     enabled: true
-    similarity_threshold: 0.78
+    similarity_threshold: 0.65
     transfer_rules:
       # Documentation issues go to docs
       - match:
