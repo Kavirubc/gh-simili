@@ -1,0 +1,251 @@
+# Simili Configuration for NexusFlow Product Suite
+# Organization: similigh
+# Repos: nexusflow-core, nexusflow-docs, nexusflow-cli, nexusflow-vscode, nexusflow-sdk
+
+qdrant:
+  url: "${QDRANT_URL}"
+  api_key: "${QDRANT_API_KEY}"
+  use_grpc: true
+
+embedding:
+  primary:
+    provider: "gemini"
+    model: "gemini-embedding-001"
+    api_key: "${GEMINI_API_KEY}"
+    dimensions: 768
+
+defaults:
+  similarity_threshold: 0.80
+  max_similar_to_show: 5
+  include_closed_issues: true
+  closed_issue_weight: 0.9
+  cross_repo_search: true          # Critical: enables cross-repo similarity detection
+  comment_cooldown_hours: 1
+
+repositories:
+  # ============================================================================
+  # NEXUSFLOW-CORE: API Gateway server and runtime engine
+  # Issues that belong here: memory leaks, performance, TLS, WebSocket, plugins,
+  # rate limiting, connection pooling, core server bugs
+  # ============================================================================
+  - org: "similigh"
+    repo: "nexusflow-core"
+    enabled: true
+    similarity_threshold: 0.78
+    transfer_rules:
+      # Documentation-related issues should go to docs repo
+      - match:
+          title_contains: ["documentation", "docs", "tutorial", "guide", "example", "how to", "getting started", "readme"]
+        target: "similigh/nexusflow-docs"
+        priority: 1
+      - match:
+          body_contains: ["documentation", "docs need", "missing documentation", "add example", "tutorial", "how do I"]
+        target: "similigh/nexusflow-docs"
+        priority: 2
+
+      # CLI-related issues should go to CLI repo
+      - match:
+          title_contains: ["CLI", "command line", "nexus deploy", "nexus login", "nexus apply", "shell completion", "terminal"]
+        target: "similigh/nexusflow-cli"
+        priority: 3
+      - match:
+          body_contains: ["nexus deploy", "nexus login", "nexus apply", "nexus get", "command line", "CLI command", "shell completion", "zsh", "bash completion"]
+        target: "similigh/nexusflow-cli"
+        priority: 4
+
+      # VS Code extension issues should go to vscode repo
+      - match:
+          title_contains: ["VS Code", "VSCode", "vscode", "extension", "IntelliSense", "syntax highlighting", "IDE"]
+        target: "similigh/nexusflow-vscode"
+        priority: 5
+      - match:
+          body_contains: ["VS Code", "VSCode", "extension", "IntelliSense", "autocomplete", "syntax highlighting", "IDE", "editor"]
+        target: "similigh/nexusflow-vscode"
+        priority: 6
+
+      # SDK-related issues should go to SDK repo
+      - match:
+          title_contains: ["SDK", "Python SDK", "Go SDK", "TypeScript SDK", "client library", "npm package", "pip install"]
+        target: "similigh/nexusflow-sdk"
+        priority: 7
+      - match:
+          body_contains: ["SDK", "Python client", "Go client", "TypeScript client", "npm install", "pip install", "go get", "client library", "nexusflow-sdk"]
+        target: "similigh/nexusflow-sdk"
+        priority: 8
+
+  # ============================================================================
+  # NEXUSFLOW-DOCS: Official documentation
+  # Issues that belong here: missing docs, broken links, typos in docs,
+  # tutorial requests, API reference issues, docs site bugs
+  # ============================================================================
+  - org: "similigh"
+    repo: "nexusflow-docs"
+    enabled: true
+    similarity_threshold: 0.78
+    transfer_rules:
+      # Core server bugs should go to core repo
+      - match:
+          title_contains: ["bug", "crash", "memory leak", "performance", "error", "panic", "TLS", "WebSocket", "plugin"]
+        target: "similigh/nexusflow-core"
+        priority: 1
+      - match:
+          body_contains: ["memory leak", "server crash", "panic:", "goroutine", "stack trace", "segmentation fault", "TLS handshake", "connection pool"]
+        target: "similigh/nexusflow-core"
+        priority: 2
+
+      # CLI bugs should go to CLI repo
+      - match:
+          title_contains: ["CLI bug", "command fails", "nexus deploy fails", "nexus login error"]
+        target: "similigh/nexusflow-cli"
+        priority: 3
+      - match:
+          body_contains: ["nexus: command not found", "CLI error", "command failed", "exit code", "nexus deploy", "nexus login"]
+        target: "similigh/nexusflow-cli"
+        priority: 4
+
+      # VS Code extension bugs should go to vscode repo
+      - match:
+          title_contains: ["extension bug", "VS Code crash", "IntelliSense broken"]
+        target: "similigh/nexusflow-vscode"
+        priority: 5
+
+      # SDK bugs should go to SDK repo
+      - match:
+          title_contains: ["SDK bug", "Python error", "TypeScript error", "Go error", "client error"]
+        target: "similigh/nexusflow-sdk"
+        priority: 6
+      - match:
+          body_contains: ["import nexusflow", "from nexusflow", "require('nexusflow')", "nexusflow.NewClient", "SDK throws", "client."]
+        target: "similigh/nexusflow-sdk"
+        priority: 7
+
+  # ============================================================================
+  # NEXUSFLOW-CLI: Command-line interface
+  # Issues that belong here: CLI commands, shell completion, terminal output,
+  # config file parsing, deploy/login/apply commands
+  # ============================================================================
+  - org: "similigh"
+    repo: "nexusflow-cli"
+    enabled: true
+    similarity_threshold: 0.78
+    transfer_rules:
+      # Documentation issues go to docs
+      - match:
+          title_contains: ["documentation", "docs", "help text", "man page", "usage example"]
+        target: "similigh/nexusflow-docs"
+        priority: 1
+
+      # Core server issues go to core
+      - match:
+          title_contains: ["server bug", "gateway", "memory leak", "TLS", "WebSocket", "plugin", "rate limit"]
+        target: "similigh/nexusflow-core"
+        priority: 2
+      - match:
+          body_contains: ["server crash", "gateway error", "connection pool", "runtime panic", "plugin system"]
+        target: "similigh/nexusflow-core"
+        priority: 3
+
+      # VS Code issues go to vscode
+      - match:
+          title_contains: ["VS Code", "VSCode", "extension", "IntelliSense"]
+        target: "similigh/nexusflow-vscode"
+        priority: 4
+
+      # SDK issues go to SDK
+      - match:
+          title_contains: ["SDK", "Python", "TypeScript", "Go client", "client library"]
+        target: "similigh/nexusflow-sdk"
+        priority: 5
+      - match:
+          body_contains: ["import nexusflow", "from nexusflow", "nexusflow.NewClient", "SDK"]
+        target: "similigh/nexusflow-sdk"
+        priority: 6
+
+  # ============================================================================
+  # NEXUSFLOW-VSCODE: VS Code extension
+  # Issues that belong here: syntax highlighting, IntelliSense, extension crashes,
+  # debugging, config validation in IDE
+  # ============================================================================
+  - org: "similigh"
+    repo: "nexusflow-vscode"
+    enabled: true
+    similarity_threshold: 0.78
+    transfer_rules:
+      # Documentation issues go to docs
+      - match:
+          title_contains: ["documentation", "docs", "tutorial", "guide"]
+        target: "similigh/nexusflow-docs"
+        priority: 1
+
+      # Core server issues go to core
+      - match:
+          title_contains: ["server", "gateway", "memory leak", "TLS", "WebSocket", "plugin system", "rate limit"]
+        target: "similigh/nexusflow-core"
+        priority: 2
+      - match:
+          body_contains: ["server crash", "gateway error", "runtime panic", "connection refused", "plugin load"]
+        target: "similigh/nexusflow-core"
+        priority: 3
+
+      # CLI issues go to CLI
+      - match:
+          title_contains: ["CLI", "command line", "nexus deploy", "nexus login", "terminal"]
+        target: "similigh/nexusflow-cli"
+        priority: 4
+      - match:
+          body_contains: ["nexus deploy", "nexus login", "nexus apply", "shell completion", "CLI"]
+        target: "similigh/nexusflow-cli"
+        priority: 5
+
+      # SDK issues go to SDK
+      - match:
+          title_contains: ["SDK", "Python", "TypeScript", "Go client"]
+        target: "similigh/nexusflow-sdk"
+        priority: 6
+
+  # ============================================================================
+  # NEXUSFLOW-SDK: Official SDKs (Go, Python, TypeScript)
+  # Issues that belong here: client library bugs, type definitions,
+  # package installation, API client issues
+  # ============================================================================
+  - org: "similigh"
+    repo: "nexusflow-sdk"
+    enabled: true
+    similarity_threshold: 0.78
+    transfer_rules:
+      # Documentation issues go to docs
+      - match:
+          title_contains: ["documentation", "docs", "tutorial", "guide", "example"]
+        target: "similigh/nexusflow-docs"
+        priority: 1
+      - match:
+          body_contains: ["documentation", "missing docs", "add example", "API reference"]
+        target: "similigh/nexusflow-docs"
+        priority: 2
+
+      # Core server issues go to core
+      - match:
+          title_contains: ["server bug", "gateway", "memory leak", "TLS", "WebSocket", "plugin"]
+        target: "similigh/nexusflow-core"
+        priority: 3
+      - match:
+          body_contains: ["server crash", "gateway error", "runtime panic", "server-side", "backend bug"]
+        target: "similigh/nexusflow-core"
+        priority: 4
+
+      # CLI issues go to CLI
+      - match:
+          title_contains: ["CLI", "command line", "nexus deploy", "nexus login"]
+        target: "similigh/nexusflow-cli"
+        priority: 5
+
+      # VS Code issues go to vscode
+      - match:
+          title_contains: ["VS Code", "VSCode", "extension", "IntelliSense"]
+        target: "similigh/nexusflow-vscode"
+        priority: 6
+
+rate_limits:
+  github_requests_per_second: 10
+  embedding_requests_per_second: 5
+  qdrant_requests_per_second: 50
