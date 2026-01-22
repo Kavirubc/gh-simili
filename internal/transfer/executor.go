@@ -13,17 +13,21 @@ import (
 
 // Executor handles issue transfers
 type Executor struct {
-	gh       *github.Client
-	vectordb *vectordb.Client
-	dryRun   bool
+	transferClient *github.Client // Client for transfer operations (may have elevated permissions)
+	commentClient  *github.Client // Client for posting comments (bot identity)
+	vectordb       *vectordb.Client
+	dryRun         bool
 }
 
 // NewExecutor creates a new transfer executor
-func NewExecutor(gh *github.Client, vdb *vectordb.Client, dryRun bool) *Executor {
+// transferClient is used for the actual transfer operation (requires elevated permissions)
+// commentClient is used for posting comments (can be a bot token for proper identity)
+func NewExecutor(transferClient *github.Client, commentClient *github.Client, vdb *vectordb.Client, dryRun bool) *Executor {
 	return &Executor{
-		gh:       gh,
-		vectordb: vdb,
-		dryRun:   dryRun,
+		transferClient: transferClient,
+		commentClient:  commentClient,
+		vectordb:       vdb,
+		dryRun:         dryRun,
 	}
 }
 
@@ -34,8 +38,8 @@ func (e *Executor) Transfer(ctx context.Context, issue *models.Issue, targetRepo
 		return err
 	}
 
-	// Check if target repo exists
-	exists, err := e.gh.RepoExists(ctx, targetOrg, targetRepoName)
+	// Check if target repo exists (use transfer client as it may have broader access)
+	exists, err := e.transferClient.RepoExists(ctx, targetOrg, targetRepoName)
 	if err != nil {
 		return fmt.Errorf("failed to check target repo: %w", err)
 	}
@@ -44,7 +48,7 @@ func (e *Executor) Transfer(ctx context.Context, issue *models.Issue, targetRepo
 	}
 
 	// Check if already transferred
-	transferred, err := e.gh.WasAlreadyTransferred(ctx, issue.Org, issue.Repo, issue.Number)
+	transferred, err := e.commentClient.WasAlreadyTransferred(ctx, issue.Org, issue.Repo, issue.Number)
 	if err != nil {
 		return fmt.Errorf("failed to check transfer status: %w", err)
 	}
@@ -56,14 +60,14 @@ func (e *Executor) Transfer(ctx context.Context, issue *models.Issue, targetRepo
 		return nil
 	}
 
-	// Post pre-transfer comment
+	// Post pre-transfer comment using comment client (for bot identity)
 	comment := formatTransferComment(targetRepo, rule)
-	if err := e.gh.PostComment(ctx, issue.Org, issue.Repo, issue.Number, comment); err != nil {
+	if err := e.commentClient.PostComment(ctx, issue.Org, issue.Repo, issue.Number, comment); err != nil {
 		return fmt.Errorf("failed to post transfer comment: %w", err)
 	}
 
-	// Execute transfer
-	if err := e.gh.TransferIssue(ctx, issue.Org, issue.Repo, issue.Number, targetRepo); err != nil {
+	// Execute transfer using transfer client (requires elevated permissions)
+	if err := e.transferClient.TransferIssue(ctx, issue.Org, issue.Repo, issue.Number, targetRepo); err != nil {
 		return fmt.Errorf("failed to transfer issue: %w", err)
 	}
 
