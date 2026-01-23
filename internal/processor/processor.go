@@ -188,24 +188,9 @@ func (p *Processor) processOpened(ctx context.Context, issue *models.Issue, repo
 			result.Transferred = true
 			result.TransferTarget = target
 
-			// Index the transferred issue in the destination repo
-			if !p.dryRun {
-				targetOrg, targetRepo, _ := github.ParseRepo(target)
-				// Create issue object for destination (GitHub keeps same content)
-				destIssue := &models.Issue{
-					Org:    targetOrg,
-					Repo:   targetRepo,
-					Number: issue.Number, // Note: number may change, but we index with original content
-					Title:  issue.Title,
-					Body:   issue.Body,
-					Author: issue.Author,
-					State:  issue.State,
-					Labels: issue.Labels,
-				}
-				if err := p.indexer.IndexSingleIssue(ctx, destIssue); err != nil {
-					fmt.Printf("Warning: failed to index transferred issue in destination: %v\n", err)
-				}
-			}
+			// Don't index here - the destination repo's workflow will handle indexing
+			// with the correct issue number. Indexing here with source issue number
+			// causes self-duplicate detection when the destination workflow runs.
 
 			return result, nil
 		}
