@@ -7,6 +7,10 @@ branding:
   color: 'purple'
 
 inputs:
+  command:
+    description: 'Command to run: "process" for similarity comments, "triage" for AI-powered labeling/quality/duplicates'
+    required: false
+    default: 'process'
   config_path:
     description: 'Path to the simili configuration file'
     required: false
@@ -15,6 +19,10 @@ inputs:
     description: 'Run in read-only mode without posting comments or making changes'
     required: false
     default: 'false'
+  execute:
+    description: 'For triage command: execute actions (add labels, close duplicates). If false, only analyzes.'
+    required: false
+    default: 'true'
   github_token:
     description: 'GitHub token for API access. Use a GitHub App token for custom bot name.'
     required: false
@@ -27,12 +35,13 @@ runs:
   using: 'docker'
   image: 'Dockerfile'
   args:
-    - process
+    - ${{ inputs.command }}
     - --event-path
     - /github/workflow/event.json
     - --config
     - ${{ inputs.config_path }}
     - ${{ inputs.dry_run == 'true' && '--dry-run' || '' }}
+    - ${{ inputs.command == 'triage' && inputs.execute == 'true' && '--execute' || '' }}
   env:
     GITHUB_TOKEN: ${{ inputs.github_token }}
     TRANSFER_TOKEN: ${{ inputs.transfer_token }}
