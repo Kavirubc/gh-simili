@@ -2,7 +2,9 @@ package triage
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"strings"
 
 	"github.com/Kavirubc/gh-simili/internal/config"
 	"github.com/Kavirubc/gh-simili/internal/llm"
@@ -83,18 +85,13 @@ func (a *Agent) Triage(ctx context.Context, issue *models.Issue) (*Result, error
 		}
 	}
 
-	// Step 5: Add similarity comment if relevant matches found
-	if len(similarIssues) > 0 && !isDuplicateClose(result.Actions) {
-		crossRepo := processor.HasCrossRepoResults(similarIssues, issue.Org, issue.Repo)
-		comment := processor.FormatSimilarityComment(similarIssues, crossRepo)
-		if comment != "" {
-			result.Actions = append(result.Actions, Action{
-				Type:    ActionComment,
-				Comment: comment,
-				Reason:  "found similar issues",
-			})
-		}
-	}
+	// Step 5: Build and add triage summary comment
+	summaryComment := a.buildSummaryComment(result, similarIssues, issue)
+	result.Actions = append(result.Actions, Action{
+		Type:    ActionComment,
+		Comment: summaryComment,
+		Reason:  "triage summary",
+	})
 
 	return result, nil
 }
@@ -143,6 +140,62 @@ func isDuplicateClose(actions []Action) bool {
 		}
 	}
 	return false
+}
+
+// buildSummaryComment creates a summary of triage actions
+func (a *Agent) buildSummaryComment(result *Result, similarIssues []vectordb.SearchResult, issue *models.Issue) string {
+	var sections []string
+
+	// Header
+	sections = append(sections, "## 🤖 Triage Summary\n")
+
+	// Labels section
+	if len(result.Labels) > 0 {
+		var labelLines []string
+		labelLines = append(labelLines, "### Labels Applied")
+		for _, l := range result.Labels {
+			labelLines = append(labelLines, fmt.Sprintf("- `%s` (%.0f%% confidence) - %s", l.Label, l.Confidence*100, l.Reason))
+		}
+		sections = append(sections, strings.Join(labelLines, "\n"))
+	} else {
+		sections = append(sections, "### Labels\nNo labels applied (no confident matches found)")
+	}
+
+	// Quality section
+	if result.Quality != nil {
+		qualityLine := fmt.Sprintf("### Quality Score: %.0f%%", result.Quality.Score*100)
+		if len(result.Quality.Missing) > 0 {
+			qualityLine += fmt.Sprintf("\n⚠️ Missing: %s", strings.Join(result.Quality.Missing, ", "))
+		} else {
+			qualityLine += "\n✅ Issue is well-documented"
+		}
+		sections = append(sections, qualityLine)
+	}
+
+	// Similar issues section
+	if len(similarIssues) > 0 {
+		crossRepo := processor.HasCrossRepoResults(similarIssues, issue.Org, issue.Repo)
+		similarComment := processor.FormatSimilarityComment(similarIssues, crossRepo)
+		if similarComment != "" {
+			sections = append(sections, "### Similar Issues\n"+similarComment)
+		}
+	} else {
+		sections = append(sections, "### Similar Issues\nNo similar issues found")
+	}
+
+	// Duplicate section
+	if result.Duplicate != nil && result.Duplicate.IsDuplicate {
+		dupLine := fmt.Sprintf("### ⚠️ Potential Duplicate\nSimilarity: %.0f%%", result.Duplicate.Similarity*100)
+		if result.Duplicate.Original != nil {
+			dupLine += fmt.Sprintf("\nOriginal: #%d - %s", result.Duplicate.Original.Number, result.Duplicate.Original.Title)
+		}
+		sections = append(sections, dupLine)
+	}
+
+	// Footer
+	sections = append(sections, "\n---\n<sub>🤖 Powered by [Simili Triage](https://github.com/Kavirubc/gh-simili)</sub>")
+
+	return strings.Join(sections, "\n\n")
 }
 
 // TriageWithSimilar performs triage with pre-fetched similar issues
