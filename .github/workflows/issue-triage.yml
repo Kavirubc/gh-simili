@@ -1,0 +1,230 @@
+name: Issue Triage Agent
+
+on:
+  issues:
+    types: [opened]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: 'Issue number to triage'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  issues: read
+
+concurrency:
+  group: issue-triage-${{ github.event.issue.number || github.event.inputs.issue_number }}
+
+jobs:
+  # Job 1: Validate event and check rate limits
+  activation:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      should_continue: ${{ steps.validate.outputs.should_continue }}
+      issue_json: ${{ steps.validate.outputs.issue_json }}
+    steps:
+      - name: Validate Event
+        id: validate
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issueNumber = context.payload.issue?.number || '${{ github.event.inputs.issue_number }}';
+            if (!issueNumber) {
+              core.setOutput('should_continue', 'false');
+              return;
+            }
+
+            const { data: issue } = await github.rest.issues.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: parseInt(issueNumber)
+            });
+
+            // Skip if issue is a PR
+            if (issue.pull_request) {
+              core.setOutput('should_continue', 'false');
+              return;
+            }
+
+            core.setOutput('should_continue', 'true');
+            core.setOutput('issue_json', JSON.stringify({
+              org: context.repo.owner,
+              repo: context.repo.repo,
+              number: issue.number,
+              title: issue.title,
+              body: issue.body || '',
+              state: issue.state,
+              labels: issue.labels.map(l => l.name),
+              author: issue.user.login,
+              url: issue.html_url
+            }));
+
+  # Job 2: Run triage analysis (read-only)
+  agent:
+    needs: activation
+    if: needs.activation.outputs.should_continue == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: read
+    outputs:
+      triage_result: ${{ steps.triage.outputs.result }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Build gh-simili
+        run: go build -o gh-simili ./cmd/gh-simili
+
+      - name: Write issue context
+        run: echo '${{ needs.activation.outputs.issue_json }}' > /tmp/issue.json
+
+      - name: Write event file
+        run: |
+          cat > /tmp/event.json << 'EOF'
+          {
+            "action": "opened",
+            "issue": ${{ toJSON(github.event.issue) }},
+            "repository": ${{ toJSON(github.event.repository) }}
+          }
+          EOF
+
+      - name: Run Triage Analysis
+        id: triage
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          QDRANT_URL: ${{ secrets.QDRANT_URL }}
+          QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
+        run: |
+          ./gh-simili triage \
+            --config .github/simili.yaml \
+            --event-path /tmp/event.json \
+            --output /tmp/triage-result.json \
+            --dry-run
+
+          result=$(cat /tmp/triage-result.json | jq -c .)
+          echo "result=$result" >> $GITHUB_OUTPUT
+
+      - name: Upload triage result
+        uses: actions/upload-artifact@v4
+        with:
+          name: triage-result
+          path: /tmp/triage-result.json
+
+  # Job 3: Security detection (validate LLM outputs)
+  detection:
+    needs: [activation, agent]
+    if: needs.agent.outputs.triage_result != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      safe: ${{ steps.detect.outputs.safe }}
+    steps:
+      - name: Download triage result
+        uses: actions/download-artifact@v4
+        with:
+          name: triage-result
+          path: /tmp
+
+      - name: Validate outputs
+        id: detect
+        run: |
+          result=$(cat /tmp/triage-result.json)
+
+          # Check for potential injection in comments
+          comments=$(echo "$result" | jq -r '.actions[]? | select(.type == "comment") | .comment // empty')
+
+          # Basic injection detection
+          if echo "$comments" | grep -iE '(script>|javascript:|onclick|onerror|<img|<iframe)' > /dev/null 2>&1; then
+            echo "Potential injection detected in comments"
+            echo "safe=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Check for suspicious URLs in comments
+          if echo "$comments" | grep -iE '(bit\.ly|tinyurl|t\.co|goo\.gl)' > /dev/null 2>&1; then
+            echo "Suspicious shortened URLs detected"
+            echo "safe=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "safe=true" >> $GITHUB_OUTPUT
+
+  # Job 4: Execute safe actions (write permissions)
+  safe_outputs:
+    needs: [activation, agent, detection]
+    if: needs.detection.outputs.safe == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Build gh-simili
+        run: go build -o gh-simili ./cmd/gh-simili
+
+      - name: Download triage result
+        uses: actions/download-artifact@v4
+        with:
+          name: triage-result
+          path: /tmp
+
+      - name: Write issue context
+        run: echo '${{ needs.activation.outputs.issue_json }}' > /tmp/issue.json
+
+      - name: Execute Actions
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ./gh-simili triage-execute \
+            --input /tmp/triage-result.json \
+            --issue /tmp/issue.json
+
+  # Job 5: Summary and notification
+  conclusion:
+    needs: [activation, agent, detection, safe_outputs]
+    if: always() && needs.activation.outputs.should_continue == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Summary
+        run: |
+          echo "## Issue Triage Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ needs.agent.result }}" == "success" ]; then
+            echo "✅ Analysis completed successfully" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Analysis failed or skipped" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "${{ needs.detection.outputs.safe }}" == "true" ]; then
+            echo "✅ Security validation passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Security validation failed or skipped" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "${{ needs.safe_outputs.result }}" == "success" ]; then
+            echo "✅ Actions executed successfully" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Actions not executed" >> $GITHUB_STEP_SUMMARY
+          fi

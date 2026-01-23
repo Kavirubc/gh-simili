@@ -1,0 +1,70 @@
+# Example triage configuration for gh-simili
+# Copy this to .github/simili.yaml and customize for your repository
+
+qdrant:
+  url: "${QDRANT_URL}"
+  api_key: "${QDRANT_API_KEY}"
+
+embedding:
+  primary:
+    provider: "gemini"
+    model: "gemini-embedding-001"
+    api_key: "${GEMINI_API_KEY}"
+    dimensions: 768
+
+# Issue triage configuration
+triage:
+  enabled: true
+
+  # LLM provider for classification and quality analysis
+  llm:
+    provider: "gemini"  # or "openai"
+    model: "gemini-1.5-flash"  # or "gpt-4o-mini"
+    api_key: "${GEMINI_API_KEY}"
+
+  # Label classification settings
+  classifier:
+    enabled: true
+    min_confidence: 0.7  # Only apply labels with >= 70% confidence
+    labels:
+      - name: "bug"
+        keywords: ["error", "crash", "broken", "not working", "fails", "exception"]
+      - name: "enhancement"
+        keywords: ["feature", "add", "improve", "request", "would be nice"]
+      - name: "question"
+        keywords: ["how to", "help", "?", "wondering", "confused"]
+      - name: "documentation"
+        keywords: ["docs", "readme", "typo", "documentation"]
+      - name: "good first issue"
+        keywords: []  # LLM-only classification for this label
+
+  # Issue quality detection
+  quality:
+    enabled: true
+    min_score: 0.5  # Flag issues below 50% quality
+    needs_info_label: "needs-info"
+
+  # Duplicate detection and auto-close
+  duplicate:
+    enabled: true
+    auto_close_threshold: 0.95  # Auto-close at >= 95% similarity
+    require_confirmation: false  # Set to true for manual confirmation
+
+# Repository configurations
+repositories:
+  - org: "your-org"
+    repo: "your-repo"
+    enabled: true
+
+defaults:
+  similarity_threshold: 0.82
+  max_similar_to_show: 5
+  include_closed_issues: true
+  closed_issue_weight: 0.9
+  cross_repo_search: true
+  comment_cooldown_hours: 1
+
+rate_limits:
+  github_requests_per_second: 10
+  embedding_requests_per_second: 5
+  qdrant_requests_per_second: 50
