@@ -132,16 +132,6 @@ func (a *Agent) qualityToActions(qr *QualityResult) []Action {
 	return actions
 }
 
-// isDuplicateClose checks if actions include closing as duplicate
-func isDuplicateClose(actions []Action) bool {
-	for _, a := range actions {
-		if a.Type == ActionClose {
-			return true
-		}
-	}
-	return false
-}
-
 // buildSummaryComment creates a summary of triage actions
 func (a *Agent) buildSummaryComment(result *Result, similarIssues []vectordb.SearchResult, issue *models.Issue) string {
 	var sections []string
