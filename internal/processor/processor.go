@@ -187,7 +187,27 @@ func (p *Processor) processOpened(ctx context.Context, issue *models.Issue, repo
 			}
 			result.Transferred = true
 			result.TransferTarget = target
-			return result, nil // Don't index transferred issues
+
+			// Index the transferred issue in the destination repo
+			if !p.dryRun {
+				targetOrg, targetRepo, _ := github.ParseRepo(target)
+				// Create issue object for destination (GitHub keeps same content)
+				destIssue := &models.Issue{
+					Org:    targetOrg,
+					Repo:   targetRepo,
+					Number: issue.Number, // Note: number may change, but we index with original content
+					Title:  issue.Title,
+					Body:   issue.Body,
+					Author: issue.Author,
+					State:  issue.State,
+					Labels: issue.Labels,
+				}
+				if err := p.indexer.IndexSingleIssue(ctx, destIssue); err != nil {
+					fmt.Printf("Warning: failed to index transferred issue in destination: %v\n", err)
+				}
+			}
+
+			return result, nil
 		}
 	}
 
