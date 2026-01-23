@@ -44,6 +44,31 @@ func Validate(cfg *Config) []error {
 		errs = append(errs, ValidationError{"defaults.closed_issue_weight", "must be between 0 and 1"})
 	}
 
+	// Validate triage config (only if enabled)
+	if cfg.Triage.Enabled {
+		if cfg.Triage.LLM.Provider == "" {
+			errs = append(errs, ValidationError{"triage.llm.provider", "required when triage is enabled"})
+		} else if cfg.Triage.LLM.Provider != "gemini" && cfg.Triage.LLM.Provider != "openai" {
+			errs = append(errs, ValidationError{"triage.llm.provider", "must be 'gemini' or 'openai'"})
+		}
+
+		if cfg.Triage.LLM.APIKey == "" {
+			errs = append(errs, ValidationError{"triage.llm.api_key", "required when triage is enabled"})
+		}
+
+		if cfg.Triage.Classifier.MinConfidence < 0 || cfg.Triage.Classifier.MinConfidence > 1 {
+			errs = append(errs, ValidationError{"triage.classifier.min_confidence", "must be between 0 and 1"})
+		}
+
+		if cfg.Triage.Quality.MinScore < 0 || cfg.Triage.Quality.MinScore > 1 {
+			errs = append(errs, ValidationError{"triage.quality.min_score", "must be between 0 and 1"})
+		}
+
+		if cfg.Triage.Duplicate.AutoCloseThreshold < 0 || cfg.Triage.Duplicate.AutoCloseThreshold > 1 {
+			errs = append(errs, ValidationError{"triage.duplicate.auto_close_threshold", "must be between 0 and 1"})
+		}
+	}
+
 	// Validate repositories
 	for i, repo := range cfg.Repositories {
 		prefix := fmt.Sprintf("repositories[%d]", i)

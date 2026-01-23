@@ -12,9 +12,53 @@ import (
 type Config struct {
 	Qdrant       QdrantConfig       `yaml:"qdrant"`
 	Embedding    EmbeddingConfig    `yaml:"embedding"`
+	Triage       TriageConfig       `yaml:"triage"`
 	Defaults     DefaultsConfig     `yaml:"defaults"`
 	Repositories []RepositoryConfig `yaml:"repositories"`
 	RateLimits   RateLimitsConfig   `yaml:"rate_limits"`
+}
+
+// TriageConfig contains issue triage settings
+type TriageConfig struct {
+	Enabled    bool             `yaml:"enabled"`
+	LLM        LLMConfig        `yaml:"llm"`
+	Classifier ClassifierConfig `yaml:"classifier"`
+	Quality    QualityConfig    `yaml:"quality"`
+	Duplicate  DuplicateConfig  `yaml:"duplicate"`
+}
+
+// LLMConfig contains LLM provider settings for triage
+type LLMConfig struct {
+	Provider string `yaml:"provider"`
+	Model    string `yaml:"model"`
+	APIKey   string `yaml:"api_key"`
+}
+
+// ClassifierConfig contains label classification settings
+type ClassifierConfig struct {
+	Enabled       bool          `yaml:"enabled"`
+	Labels        []LabelConfig `yaml:"labels"`
+	MinConfidence float64       `yaml:"min_confidence"`
+}
+
+// LabelConfig defines a label with optional matching keywords
+type LabelConfig struct {
+	Name     string   `yaml:"name"`
+	Keywords []string `yaml:"keywords,omitempty"`
+}
+
+// QualityConfig contains quality detection settings
+type QualityConfig struct {
+	Enabled        bool    `yaml:"enabled"`
+	MinScore       float64 `yaml:"min_score"`
+	NeedsInfoLabel string  `yaml:"needs_info_label"`
+}
+
+// DuplicateConfig contains duplicate detection settings
+type DuplicateConfig struct {
+	Enabled            bool    `yaml:"enabled"`
+	AutoCloseThreshold float64 `yaml:"auto_close_threshold"`
+	RequireConfirm     bool    `yaml:"require_confirmation"`
 }
 
 // QdrantConfig contains Qdrant connection settings
@@ -156,5 +200,19 @@ func applyDefaults(cfg *Config) {
 	}
 	if cfg.Embedding.Fallback.Dimensions == 0 {
 		cfg.Embedding.Fallback.Dimensions = 768
+	}
+
+	// Triage defaults
+	if cfg.Triage.Classifier.MinConfidence == 0 {
+		cfg.Triage.Classifier.MinConfidence = 0.7
+	}
+	if cfg.Triage.Quality.MinScore == 0 {
+		cfg.Triage.Quality.MinScore = 0.5
+	}
+	if cfg.Triage.Quality.NeedsInfoLabel == "" {
+		cfg.Triage.Quality.NeedsInfoLabel = "needs-info"
+	}
+	if cfg.Triage.Duplicate.AutoCloseThreshold == 0 {
+		cfg.Triage.Duplicate.AutoCloseThreshold = 0.95
 	}
 }
