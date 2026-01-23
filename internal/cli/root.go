@@ -34,6 +34,8 @@ func init() {
 	rootCmd.AddCommand(newSyncCmd())
 	rootCmd.AddCommand(newSearchCmd())
 	rootCmd.AddCommand(newConfigCmd())
+	rootCmd.AddCommand(newTriageCmd())
+	rootCmd.AddCommand(newTriageExecuteCmd())
 	rootCmd.AddCommand(newVersionCmd())
 }
 
