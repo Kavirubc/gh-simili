@@ -84,12 +84,22 @@ type ProviderConfig struct {
 
 // DefaultsConfig contains default behavior settings
 type DefaultsConfig struct {
-	SimilarityThreshold  float64 `yaml:"similarity_threshold"`
-	MaxSimilarToShow     int     `yaml:"max_similar_to_show"`
-	IncludeClosedIssues  bool    `yaml:"include_closed_issues"`
-	ClosedIssueWeight    float64 `yaml:"closed_issue_weight"`
-	CrossRepoSearch      bool    `yaml:"cross_repo_search"`
-	CommentCooldownHours int     `yaml:"comment_cooldown_hours"`
+	SimilarityThreshold  float64            `yaml:"similarity_threshold"`
+	MaxSimilarToShow     int                `yaml:"max_similar_to_show"`
+	IncludeClosedIssues  bool               `yaml:"include_closed_issues"`
+	ClosedIssueWeight    float64            `yaml:"closed_issue_weight"`
+	CrossRepoSearch      bool               `yaml:"cross_repo_search"`
+	CommentCooldownHours int                `yaml:"comment_cooldown_hours"`
+	DelayedActions       DelayedActionsConfig `yaml:"delayed_actions"`
+}
+
+// DelayedActionsConfig contains settings for delayed actions
+type DelayedActionsConfig struct {
+	Enabled          bool   `yaml:"enabled"`
+	DelayHours       int    `yaml:"delay_hours"`
+	ApproveReaction  string `yaml:"approve_reaction"`
+	CancelReaction   string `yaml:"cancel_reaction"`
+	ExecuteOnApprove bool   `yaml:"execute_on_approve"`
 }
 
 // RepositoryConfig contains settings for a specific repository
@@ -215,4 +225,17 @@ func applyDefaults(cfg *Config) {
 	if cfg.Triage.Duplicate.AutoCloseThreshold == 0 {
 		cfg.Triage.Duplicate.AutoCloseThreshold = 0.95
 	}
+
+	// Delayed actions defaults
+	if cfg.Defaults.DelayedActions.DelayHours == 0 {
+		cfg.Defaults.DelayedActions.DelayHours = 24
+	}
+	if cfg.Defaults.DelayedActions.ApproveReaction == "" {
+		cfg.Defaults.DelayedActions.ApproveReaction = "+1"
+	}
+	if cfg.Defaults.DelayedActions.CancelReaction == "" {
+		cfg.Defaults.DelayedActions.CancelReaction = "-1"
+	}
+	// Enabled defaults to true if not explicitly set
+	// (zero value for bool is false, so we check if it was explicitly set)
 }
