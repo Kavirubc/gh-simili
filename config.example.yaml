@@ -22,6 +22,12 @@ defaults:
   closed_issue_weight: 0.9       # Reduce similarity score for closed issues
   cross_repo_search: true        # Search all repos in same org
   comment_cooldown_hours: 1      # Prevent spam on rapid open/close/reopen
+  delayed_actions:
+    enabled: true                 # Enable 24h delay before transfers/closes
+    delay_hours: 24              # Hours to wait before executing action
+    approve_reaction: "+1"        # Thumbs up reaction to approve action
+    cancel_reaction: "-1"         # Thumbs down reaction to cancel action
+    execute_on_approve: false    # If true, execute immediately when approved
 
 repositories:
   - org: "myorg"
