@@ -15,8 +15,10 @@ import (
 const (
 	LabelPendingTransfer = "pending-transfer"
 	LabelPendingClose    = "pending-close"
-	metadataPattern      = `<!-- simili-pending-action: ({.*?}) -->`
+	metadataPattern      = `<!-- simili-pending-action: ({.*}) -->`
 )
+
+var metadataRegex = regexp.MustCompile(`(?s)` + metadataPattern)
 
 // ActionType represents the type of pending action
 type ActionType string
@@ -28,14 +30,14 @@ const (
 
 // PendingAction represents a scheduled action
 type PendingAction struct {
-	Type        ActionType `json:"type"`
-	Org         string     `json:"org"`
-	Repo        string     `json:"repo"`
-	IssueNumber int        `json:"issue_number"`
-	Target      string     `json:"target"` // target repo for transfer, or original issue URL for close
-	CommentID   int        `json:"comment_id"`
-	ScheduledAt time.Time  `json:"scheduled_at"`
-	ExpiresAt   time.Time  `json:"expires_at"`
+	Type        ActionType        `json:"type"`
+	Org         string            `json:"org"`
+	Repo        string            `json:"repo"`
+	IssueNumber int               `json:"issue_number"`
+	Target      string            `json:"target"` // target repo for transfer, or original issue URL for close
+	CommentID   int               `json:"comment_id"`
+	ScheduledAt time.Time         `json:"scheduled_at"`
+	ExpiresAt   time.Time         `json:"expires_at"`
 	Metadata    map[string]string `json:"metadata,omitempty"`
 }
 
@@ -105,9 +107,8 @@ func (m *Manager) extractPendingAction(ctx context.Context, issue *models.Issue,
 		return nil, err
 	}
 
-	re := regexp.MustCompile(metadataPattern)
 	for _, comment := range comments {
-		matches := re.FindStringSubmatch(comment.Body)
+		matches := metadataRegex.FindStringSubmatch(comment.Body)
 		if len(matches) < 2 {
 			continue
 		}
@@ -128,15 +129,17 @@ func (m *Manager) extractPendingAction(ctx context.Context, issue *models.Issue,
 }
 
 // FormatPendingActionMetadata formats action metadata as HTML comment
-func FormatPendingActionMetadata(action *PendingAction) string {
-	data, _ := json.Marshal(action)
-	return fmt.Sprintf("<!-- simili-pending-action: %s -->", string(data))
+func FormatPendingActionMetadata(action *PendingAction) (string, error) {
+	data, err := json.Marshal(action)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal pending action: %w", err)
+	}
+	return fmt.Sprintf("<!-- simili-pending-action: %s -->", string(data)), nil
 }
 
 // ParsePendingActionMetadata parses action metadata from comment body
 func ParsePendingActionMetadata(commentBody string) (*PendingAction, error) {
-	re := regexp.MustCompile(metadataPattern)
-	matches := re.FindStringSubmatch(commentBody)
+	matches := metadataRegex.FindStringSubmatch(commentBody)
 	if len(matches) < 2 {
 		return nil, fmt.Errorf("metadata not found")
 	}

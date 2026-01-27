@@ -11,16 +11,33 @@ type Reaction struct {
 	User    User   `json:"user"`
 }
 
-// ListCommentReactions fetches reactions on a comment
+// ListCommentReactions fetches reactions on a comment with pagination
 func (c *Client) ListCommentReactions(ctx context.Context, org, repo string, commentID int) ([]Reaction, error) {
-	endpoint := fmt.Sprintf("repos/%s/%s/issues/comments/%d/reactions", org, repo, commentID)
+	var allReactions []Reaction
+	page := 1
+	perPage := 100
 
-	var reactions []Reaction
-	if err := c.rest.Get(endpoint, &reactions); err != nil {
-		return nil, fmt.Errorf("failed to list comment reactions: %w", err)
+	for {
+		endpoint := fmt.Sprintf("repos/%s/%s/issues/comments/%d/reactions?per_page=%d&page=%d", org, repo, commentID, perPage, page)
+
+		var reactions []Reaction
+		if err := c.rest.Get(endpoint, &reactions); err != nil {
+			return nil, fmt.Errorf("failed to list comment reactions: %w", err)
+		}
+
+		if len(reactions) == 0 {
+			break
+		}
+
+		allReactions = append(allReactions, reactions...)
+
+		if len(reactions) < perPage {
+			break
+		}
+		page++
 	}
 
-	return reactions, nil
+	return allReactions, nil
 }
 
 // HasReaction checks if a comment has a specific reaction type from any user

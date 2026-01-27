@@ -93,8 +93,11 @@ func (e *Executor) ScheduleTransfer(ctx context.Context, issue *models.Issue, ta
 	}
 
 	// Post warning comment
-	comment := formatDelayedTransferComment(targetRepo, rule, expiresAt, e.cfg.Defaults.DelayedActions)
-	commentID, err := e.postCommentWithID(ctx, issue.Org, issue.Repo, issue.Number, comment)
+	comment, err := formatDelayedTransferComment(targetRepo, rule, expiresAt, e.cfg.Defaults.DelayedActions, action)
+	if err != nil {
+		return fmt.Errorf("failed to format warning comment: %w", err)
+	}
+	commentID, err := e.commentClient.PostCommentWithID(ctx, issue.Org, issue.Repo, issue.Number, comment)
 	if err != nil {
 		return fmt.Errorf("failed to post warning comment: %w", err)
 	}
@@ -180,7 +183,9 @@ func (e *Executor) executeTransfer(ctx context.Context, issue *models.Issue, tar
 	}
 
 	// Remove pending label if exists
-	_ = e.commentClient.RemoveLabel(ctx, issue.Org, issue.Repo, issue.Number, pending.LabelPendingTransfer)
+	if err := e.commentClient.RemoveLabel(ctx, issue.Org, issue.Repo, issue.Number, pending.LabelPendingTransfer); err != nil {
+		fmt.Printf("Warning: failed to remove pending-transfer label from %s/%s#%d: %v\n", issue.Org, issue.Repo, issue.Number, err)
+	}
 
 	// Delete old vector
 	collection := vectordb.CollectionName(issue.Org)
@@ -231,17 +236,14 @@ The discussion will continue there. Thanks for your report!
 }
 
 // formatDelayedTransferComment creates a warning comment for delayed transfer
-func formatDelayedTransferComment(targetRepo string, rule *config.TransferRule, expiresAt time.Time, cfg config.DelayedActionsConfig) string {
+func formatDelayedTransferComment(targetRepo string, rule *config.TransferRule, expiresAt time.Time, cfg config.DelayedActionsConfig, action *pending.PendingAction) (string, error) {
 	matchDesc := formatMatchDescription(rule)
 	deadline := expiresAt.Format("2006-01-02 15:04 MST")
 
-	action := &pending.PendingAction{
-		Type:        pending.ActionTypeTransfer,
-		Target:      targetRepo,
-		ExpiresAt:   expiresAt,
+	metadata, err := pending.FormatPendingActionMetadata(action)
+	if err != nil {
+		return "", err
 	}
-
-	metadata := pending.FormatPendingActionMetadata(action)
 
 	return fmt.Sprintf(`⚠️ **This issue will be transferred to %s in %d hours**
 
@@ -266,7 +268,7 @@ If no reaction is provided, the transfer will proceed automatically.
 		cfg.CancelReaction,
 		deadline,
 		metadata,
-	)
+	), nil
 }
 
 // formatTransferCancelledComment creates a cancellation comment
@@ -281,6 +283,10 @@ The issue will remain in this repository.
 
 // formatMatchDescription creates a human-readable match description
 func formatMatchDescription(rule *config.TransferRule) string {
+	if rule == nil {
+		return "routing rules"
+	}
+
 	var parts []string
 
 	if len(rule.Match.Labels) > 0 {

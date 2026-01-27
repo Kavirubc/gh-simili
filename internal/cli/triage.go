@@ -85,7 +85,7 @@ or execute actions directly.`,
 
 			similarity := processor.NewSimilarityFinder(cfg, embedder, vdb)
 
-			// Create triage agent with GitHub client for delayed actions
+			// Create GitHub client for delayed actions
 			ghClient, err := github.NewClient()
 			if err != nil {
 				return fmt.Errorf("failed to create GitHub client: %w", err)
@@ -112,11 +112,6 @@ or execute actions directly.`,
 
 			// Execute actions if requested
 			if execute && !dryRun {
-				ghClient, err := github.NewClient()
-				if err != nil {
-					return fmt.Errorf("failed to create GitHub client: %w", err)
-				}
-
 				executor := triage.NewExecutor(ghClient, dryRun)
 				if err := executor.Execute(ctx, issue, result); err != nil {
 					return fmt.Errorf("failed to execute actions: %w", err)
@@ -192,8 +187,8 @@ func printTriageResult(result *triage.Result) {
 // newTriageExecuteCmd creates a command to execute pre-computed triage actions
 func newTriageExecuteCmd() *cobra.Command {
 	var (
-		inputPath  string
-		issueJSON  string
+		inputPath string
+		issueJSON string
 	)
 
 	cmd := &cobra.Command{

@@ -20,6 +20,7 @@ type DuplicateChecker struct {
 	gh                 *github.Client
 	pendingManager     *pending.Manager
 	cfg                *config.Config
+	dryRun             bool
 }
 
 // NewDuplicateChecker creates a new duplicate checker
@@ -38,6 +39,19 @@ func NewDuplicateCheckerWithDelayedActions(cfg *config.DuplicateConfig, gh *gith
 		gh:                 gh,
 		pendingManager:     pending.NewManager(gh, fullCfg),
 		cfg:                fullCfg,
+		dryRun:             false,
+	}
+}
+
+// NewDuplicateCheckerWithDelayedActionsAndDryRun creates a duplicate checker with delayed action support and dry run
+func NewDuplicateCheckerWithDelayedActionsAndDryRun(cfg *config.DuplicateConfig, gh *github.Client, fullCfg *config.Config, dryRun bool) *DuplicateChecker {
+	return &DuplicateChecker{
+		autoCloseThreshold: cfg.AutoCloseThreshold,
+		requireConfirm:     cfg.RequireConfirm,
+		gh:                 gh,
+		pendingManager:     pending.NewManager(gh, fullCfg),
+		cfg:                fullCfg,
+		dryRun:             dryRun,
 	}
 }
 
@@ -129,9 +143,9 @@ func (d *DuplicateChecker) GetActions(result *DuplicateResult) []Action {
 
 	actions := []Action{
 		{
-			Type:    ActionAddLabel,
-			Label:   "duplicate",
-			Reason:  fmt.Sprintf("%.0f%% similarity to #%d", result.Similarity*100, result.Original.Number),
+			Type:   ActionAddLabel,
+			Label:  "duplicate",
+			Reason: fmt.Sprintf("%.0f%% similarity to #%d", result.Similarity*100, result.Original.Number),
 		},
 		{
 			Type:    ActionComment,
@@ -160,6 +174,10 @@ func (d *DuplicateChecker) ScheduleClose(ctx context.Context, issue *models.Issu
 		return fmt.Errorf("delayed actions disabled")
 	}
 
+	if result.Original == nil {
+		return fmt.Errorf("cannot schedule close: original issue is nil")
+	}
+
 	delayHours := d.cfg.Defaults.DelayedActions.DelayHours
 	expiresAt := time.Now().Add(time.Duration(delayHours) * time.Hour)
 
@@ -175,8 +193,11 @@ func (d *DuplicateChecker) ScheduleClose(ctx context.Context, issue *models.Issu
 	}
 
 	// Post warning comment
-	comment := d.formatDelayedCloseComment(result, expiresAt, d.cfg.Defaults.DelayedActions)
-	commentID, err := d.postCommentWithID(ctx, issue.Org, issue.Repo, issue.Number, comment)
+	comment, err := d.formatDelayedCloseComment(result, expiresAt, d.cfg.Defaults.DelayedActions, action)
+	if err != nil {
+		return fmt.Errorf("failed to format warning comment: %w", err)
+	}
+	commentID, err := d.gh.PostCommentWithID(ctx, issue.Org, issue.Repo, issue.Number, comment)
 	if err != nil {
 		return fmt.Errorf("failed to post warning comment: %w", err)
 	}
@@ -243,6 +264,10 @@ func (d *DuplicateChecker) ProcessPendingClose(ctx context.Context, action *pend
 
 // executeClose performs the actual close
 func (d *DuplicateChecker) executeClose(ctx context.Context, action *pending.PendingAction) error {
+	if d.dryRun {
+		return nil
+	}
+
 	// Add duplicate label
 	if err := d.gh.AddLabels(ctx, action.Org, action.Repo, action.IssueNumber, []string{"duplicate"}); err != nil {
 		return err
@@ -254,22 +279,21 @@ func (d *DuplicateChecker) executeClose(ctx context.Context, action *pending.Pen
 	}
 
 	// Remove pending label
-	_ = d.pendingManager.Cancel(ctx, action)
+	if err := d.pendingManager.Cancel(ctx, action); err != nil {
+		fmt.Printf("Warning: failed to remove pending-close label from %s/%s#%d: %v\n", action.Org, action.Repo, action.IssueNumber, err)
+	}
 
 	return nil
 }
 
 // formatDelayedCloseComment creates a warning comment for delayed close
-func (d *DuplicateChecker) formatDelayedCloseComment(result *DuplicateResult, expiresAt time.Time, cfg config.DelayedActionsConfig) string {
+func (d *DuplicateChecker) formatDelayedCloseComment(result *DuplicateResult, expiresAt time.Time, cfg config.DelayedActionsConfig, action *pending.PendingAction) (string, error) {
 	deadline := expiresAt.Format("2006-01-02 15:04 MST")
 
-	action := &pending.PendingAction{
-		Type:      pending.ActionTypeClose,
-		Target:    result.Original.URL,
-		ExpiresAt: expiresAt,
+	metadata, err := pending.FormatPendingActionMetadata(action)
+	if err != nil {
+		return "", err
 	}
-
-	metadata := pending.FormatPendingActionMetadata(action)
 
 	return fmt.Sprintf(`⚠️ **This issue will be closed as a duplicate in %d hours**
 
@@ -297,7 +321,7 @@ If no reaction is provided, the issue will be closed automatically.
 		cfg.CancelReaction,
 		deadline,
 		metadata,
-	)
+	), nil
 }
 
 // formatCloseCancelledComment creates a cancellation comment

@@ -111,29 +111,44 @@ func (i *Issue) isPullRequest() bool {
 	return false
 }
 
-// ListIssuesByLabel fetches issues with a specific label
+// ListIssuesByLabel fetches issues with a specific label with pagination
 func (c *Client) ListIssuesByLabel(ctx context.Context, org, repo, label string) ([]*models.Issue, error) {
-	params := url.Values{}
-	params.Set("labels", label)
-	params.Set("state", "open")
-	params.Set("per_page", "100")
-	params.Set("sort", "updated")
-	params.Set("direction", "desc")
+	var allIssues []*models.Issue
+	page := 1
+	perPage := 100
 
-	endpoint := fmt.Sprintf("repos/%s/%s/issues?%s", org, repo, params.Encode())
+	for {
+		params := url.Values{}
+		params.Set("labels", label)
+		params.Set("state", "open")
+		params.Set("per_page", strconv.Itoa(perPage))
+		params.Set("page", strconv.Itoa(page))
+		params.Set("sort", "updated")
+		params.Set("direction", "desc")
 
-	var apiIssues []Issue
-	if err := c.rest.Get(endpoint, &apiIssues); err != nil {
-		return nil, fmt.Errorf("failed to list issues by label: %w", err)
-	}
+		endpoint := fmt.Sprintf("repos/%s/%s/issues?%s", org, repo, params.Encode())
 
-	issues := make([]*models.Issue, 0, len(apiIssues))
-	for _, ai := range apiIssues {
-		if ai.isPullRequest() {
-			continue
+		var apiIssues []Issue
+		if err := c.rest.Get(endpoint, &apiIssues); err != nil {
+			return nil, fmt.Errorf("failed to list issues by label: %w", err)
 		}
-		issues = append(issues, ai.ToModel(org, repo))
+
+		if len(apiIssues) == 0 {
+			break
+		}
+
+		for _, ai := range apiIssues {
+			if ai.isPullRequest() {
+				continue
+			}
+			allIssues = append(allIssues, ai.ToModel(org, repo))
+		}
+
+		if len(apiIssues) < perPage {
+			break
+		}
+		page++
 	}
 
-	return issues, nil
+	return allIssues, nil
 }

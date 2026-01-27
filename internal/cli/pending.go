@@ -55,6 +55,9 @@ func newProcessPendingCmd() *cobra.Command {
 			}
 			defer vdb.Close()
 
+			// Create pending manager once (reused for all repos)
+			pendingMgr := pending.NewManager(gh, cfg)
+
 			// Process each repository
 			processedCount := 0
 			for _, repoConfig := range cfg.Repositories {
@@ -65,7 +68,6 @@ func newProcessPendingCmd() *cobra.Command {
 				fmt.Printf("Processing pending actions for %s/%s...\n", repoConfig.Org, repoConfig.Repo)
 
 				// Find pending actions
-				pendingMgr := pending.NewManager(gh, cfg)
 				actions, err := pendingMgr.FindPendingActions(ctx, repoConfig.Org, repoConfig.Repo)
 				if err != nil {
 					fmt.Printf("Warning: failed to find pending actions: %v\n", err)
@@ -90,7 +92,7 @@ func newProcessPendingCmd() *cobra.Command {
 						processedCount++
 
 					case pending.ActionTypeClose:
-						duplicateChecker := triage.NewDuplicateCheckerWithDelayedActions(&cfg.Triage.Duplicate, gh, cfg)
+						duplicateChecker := triage.NewDuplicateCheckerWithDelayedActionsAndDryRun(&cfg.Triage.Duplicate, gh, cfg, dryRun)
 						if err := duplicateChecker.ProcessPendingClose(ctx, action); err != nil {
 							fmt.Printf("Error processing close: %v\n", err)
 							continue

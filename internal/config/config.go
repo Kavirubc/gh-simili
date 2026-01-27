@@ -84,12 +84,12 @@ type ProviderConfig struct {
 
 // DefaultsConfig contains default behavior settings
 type DefaultsConfig struct {
-	SimilarityThreshold  float64            `yaml:"similarity_threshold"`
-	MaxSimilarToShow     int                `yaml:"max_similar_to_show"`
-	IncludeClosedIssues  bool               `yaml:"include_closed_issues"`
-	ClosedIssueWeight    float64            `yaml:"closed_issue_weight"`
-	CrossRepoSearch      bool               `yaml:"cross_repo_search"`
-	CommentCooldownHours int                `yaml:"comment_cooldown_hours"`
+	SimilarityThreshold  float64              `yaml:"similarity_threshold"`
+	MaxSimilarToShow     int                  `yaml:"max_similar_to_show"`
+	IncludeClosedIssues  bool                 `yaml:"include_closed_issues"`
+	ClosedIssueWeight    float64              `yaml:"closed_issue_weight"`
+	CrossRepoSearch      bool                 `yaml:"cross_repo_search"`
+	CommentCooldownHours int                  `yaml:"comment_cooldown_hours"`
 	DelayedActions       DelayedActionsConfig `yaml:"delayed_actions"`
 }
 
@@ -236,6 +236,5 @@ func applyDefaults(cfg *Config) {
 	if cfg.Defaults.DelayedActions.CancelReaction == "" {
 		cfg.Defaults.DelayedActions.CancelReaction = "-1"
 	}
-	// Enabled defaults to true if not explicitly set
-	// (zero value for bool is false, so we check if it was explicitly set)
+	// Enabled defaults to false (zero value) - must be explicitly enabled
 }

@@ -73,3 +73,27 @@ func (c *Client) WasAlreadyTransferred(ctx context.Context, org, repo string, nu
 
 	return false, nil
 }
+
+// PostCommentWithID posts a comment and returns its ID
+// This method posts a comment and then searches for it to get the ID
+func (c *Client) PostCommentWithID(ctx context.Context, org, repo string, number int, body string) (int, error) {
+	// Post the comment first
+	if err := c.PostComment(ctx, org, repo, number, body); err != nil {
+		return 0, err
+	}
+
+	// Get the comment ID by listing recent comments
+	comments, err := c.ListComments(ctx, org, repo, number)
+	if err != nil {
+		return 0, err
+	}
+
+	// Find the comment we just posted (should be the most recent one with our signature)
+	for i := len(comments) - 1; i >= 0; i-- {
+		if strings.Contains(comments[i].Body, "simili-pending-action") {
+			return comments[i].ID, nil
+		}
+	}
+
+	return 0, fmt.Errorf("failed to find posted comment")
+}
