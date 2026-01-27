@@ -196,31 +196,6 @@ func (e *Executor) executeTransfer(ctx context.Context, issue *models.Issue, tar
 	return nil
 }
 
-// postCommentWithID posts a comment and returns its ID
-func (e *Executor) postCommentWithID(ctx context.Context, org, repo string, number int, body string) (int, error) {
-	// Note: GitHub API returns comment object with ID, but go-gh wrapper may not expose it
-	// For now, we'll need to list comments after posting to get the ID
-	// This is a limitation we'll work around
-	if err := e.commentClient.PostComment(ctx, org, repo, number, body); err != nil {
-		return 0, err
-	}
-
-	// Get the comment ID by listing recent comments
-	comments, err := e.commentClient.ListComments(ctx, org, repo, number)
-	if err != nil {
-		return 0, err
-	}
-
-	// Find the comment we just posted (should be the most recent one with our signature)
-	for i := len(comments) - 1; i >= 0; i-- {
-		if strings.Contains(comments[i].Body, "simili-pending-action") {
-			return comments[i].ID, nil
-		}
-	}
-
-	return 0, fmt.Errorf("failed to find posted comment")
-}
-
 // formatTransferComment creates the transfer notification comment
 func formatTransferComment(targetRepo string, rule *config.TransferRule) string {
 	matchDesc := formatMatchDescription(rule)

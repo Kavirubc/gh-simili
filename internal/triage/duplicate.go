@@ -337,25 +337,3 @@ The issue will remain open and has been labeled as ` + "`potential-duplicate`" +
 ---
 <sub>🤖 Powered by [Simili](https://github.com/Kavirubc/gh-simili)</sub>`
 }
-
-// postCommentWithID posts a comment and returns its ID
-func (d *DuplicateChecker) postCommentWithID(ctx context.Context, org, repo string, number int, body string) (int, error) {
-	if err := d.gh.PostComment(ctx, org, repo, number, body); err != nil {
-		return 0, err
-	}
-
-	// Get the comment ID by listing recent comments
-	comments, err := d.gh.ListComments(ctx, org, repo, number)
-	if err != nil {
-		return 0, err
-	}
-
-	// Find the comment we just posted
-	for i := len(comments) - 1; i >= 0; i-- {
-		if strings.Contains(comments[i].Body, "simili-pending-action") {
-			return comments[i].ID, nil
-		}
-	}
-
-	return 0, fmt.Errorf("failed to find posted comment")
-}
