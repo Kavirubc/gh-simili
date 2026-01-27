@@ -110,3 +110,30 @@ func (c *Client) ListAllIssues(ctx context.Context, org, repo string, state stri
 func (i *Issue) isPullRequest() bool {
 	return false
 }
+
+// ListIssuesByLabel fetches issues with a specific label
+func (c *Client) ListIssuesByLabel(ctx context.Context, org, repo, label string) ([]*models.Issue, error) {
+	params := url.Values{}
+	params.Set("labels", label)
+	params.Set("state", "open")
+	params.Set("per_page", "100")
+	params.Set("sort", "updated")
+	params.Set("direction", "desc")
+
+	endpoint := fmt.Sprintf("repos/%s/%s/issues?%s", org, repo, params.Encode())
+
+	var apiIssues []Issue
+	if err := c.rest.Get(endpoint, &apiIssues); err != nil {
+		return nil, fmt.Errorf("failed to list issues by label: %w", err)
+	}
+
+	issues := make([]*models.Issue, 0, len(apiIssues))
+	for _, ai := range apiIssues {
+		if ai.isPullRequest() {
+			continue
+		}
+		issues = append(issues, ai.ToModel(org, repo))
+	}
+
+	return issues, nil
+}
