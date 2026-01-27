@@ -237,6 +237,10 @@ func (d *DuplicateChecker) ProcessPendingClose(ctx context.Context, action *pend
 		return fmt.Errorf("failed to check reactions: %w", err)
 	}
 
+	if d.dryRun {
+		return nil
+	}
+
 	if decision == "cancel" {
 		// User cancelled, add potential-duplicate label instead
 		if err := d.pendingManager.Cancel(ctx, action); err != nil {
