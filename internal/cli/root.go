@@ -36,6 +36,7 @@ func init() {
 	rootCmd.AddCommand(newConfigCmd())
 	rootCmd.AddCommand(newTriageCmd())
 	rootCmd.AddCommand(newTriageExecuteCmd())
+	rootCmd.AddCommand(newProcessPendingCmd())
 	rootCmd.AddCommand(newVersionCmd())
 }
 
