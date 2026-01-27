@@ -7,14 +7,17 @@ import (
 	"log"
 	"os"
 
+	"github.com/Kavirubc/gh-simili/internal/config"
 	"github.com/Kavirubc/gh-simili/internal/github"
 	"github.com/Kavirubc/gh-simili/pkg/models"
 )
 
 // Executor executes triage actions
 type Executor struct {
-	client *github.Client
-	dryRun bool
+	client        *github.Client
+	dryRun        bool
+	cfg           *config.Config
+	duplicateChecker *DuplicateChecker
 }
 
 // NewExecutor creates a new action executor
@@ -25,10 +28,20 @@ func NewExecutor(client *github.Client, dryRun bool) *Executor {
 	}
 }
 
+// NewExecutorWithDelayedActions creates an executor with delayed action support
+func NewExecutorWithDelayedActions(client *github.Client, cfg *config.Config, duplicateChecker *DuplicateChecker, dryRun bool) *Executor {
+	return &Executor{
+		client:          client,
+		dryRun:           dryRun,
+		cfg:              cfg,
+		duplicateChecker: duplicateChecker,
+	}
+}
+
 // Execute performs all actions in a triage result
 func (e *Executor) Execute(ctx context.Context, issue *models.Issue, result *Result) error {
 	for _, action := range result.Actions {
-		if err := e.executeAction(ctx, issue, action); err != nil {
+		if err := e.executeAction(ctx, issue, action, result); err != nil {
 			log.Printf("Error executing action %s: %v", action.Type, err)
 			// Continue with other actions
 		}
@@ -36,8 +49,9 @@ func (e *Executor) Execute(ctx context.Context, issue *models.Issue, result *Res
 	return nil
 }
 
+
 // executeAction performs a single action
-func (e *Executor) executeAction(ctx context.Context, issue *models.Issue, action Action) error {
+func (e *Executor) executeAction(ctx context.Context, issue *models.Issue, action Action, result *Result) error {
 	log.Printf("Executing action: %s (reason: %s)", action.Type, action.Reason)
 
 	if e.dryRun {
@@ -56,6 +70,15 @@ func (e *Executor) executeAction(ctx context.Context, issue *models.Issue, actio
 		return e.client.PostComment(ctx, issue.Org, issue.Repo, issue.Number, action.Comment)
 
 	case ActionClose:
+		// Check if delayed actions are enabled - if so, schedule instead of closing immediately
+		if e.cfg != nil && e.cfg.Defaults.DelayedActions.Enabled && e.duplicateChecker != nil && result != nil {
+			// Check if this is a duplicate close action
+			if dupResult := result.Duplicate; dupResult != nil && dupResult.IsDuplicate {
+				// Schedule delayed close instead of closing immediately
+				return e.duplicateChecker.ScheduleClose(ctx, issue, dupResult)
+			}
+		}
+		// Fall back to immediate close if delayed actions not enabled or not a duplicate
 		return e.client.CloseIssue(ctx, issue.Org, issue.Repo, issue.Number, "not_planned")
 
 	default:
@@ -74,7 +97,7 @@ func (e *Executor) ExecuteSelective(ctx context.Context, issue *models.Issue, re
 		if !allowed[action.Type] {
 			continue
 		}
-		if err := e.executeAction(ctx, issue, action); err != nil {
+		if err := e.executeAction(ctx, issue, action, result); err != nil {
 			log.Printf("Error executing action %s: %v", action.Type, err)
 		}
 	}

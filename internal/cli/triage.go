@@ -112,7 +112,14 @@ or execute actions directly.`,
 
 			// Execute actions if requested
 			if execute && !dryRun {
-				executor := triage.NewExecutor(ghClient, dryRun)
+				// Create executor with delayed action support if enabled
+				var executor *triage.Executor
+				if cfg.Defaults.DelayedActions.Enabled {
+					duplicateChecker := triage.NewDuplicateCheckerWithDelayedActions(&cfg.Triage.Duplicate, ghClient, cfg)
+					executor = triage.NewExecutorWithDelayedActions(ghClient, cfg, duplicateChecker, dryRun)
+				} else {
+					executor = triage.NewExecutor(ghClient, dryRun)
+				}
 				if err := executor.Execute(ctx, issue, result); err != nil {
 					return fmt.Errorf("failed to execute actions: %w", err)
 				}
@@ -218,7 +225,20 @@ func newTriageExecuteCmd() *cobra.Command {
 				return fmt.Errorf("failed to create GitHub client: %w", err)
 			}
 
-			executor := triage.NewExecutor(ghClient, dryRun)
+			// Load config to check for delayed actions
+			cfgPath := config.FindConfigPath(cfgFile)
+			var executor *triage.Executor
+			if cfgPath != "" {
+				cfg, err := config.Load(cfgPath)
+				if err == nil && cfg.Defaults.DelayedActions.Enabled {
+					duplicateChecker := triage.NewDuplicateCheckerWithDelayedActions(&cfg.Triage.Duplicate, ghClient, cfg)
+					executor = triage.NewExecutorWithDelayedActions(ghClient, cfg, duplicateChecker, dryRun)
+				}
+			}
+			if executor == nil {
+				executor = triage.NewExecutor(ghClient, dryRun)
+			}
+
 			if err := executor.Execute(ctx, &issue, result); err != nil {
 				return fmt.Errorf("failed to execute actions: %w", err)
 			}
