@@ -181,7 +181,7 @@ func (p *Processor) processOpened(ctx context.Context, issue *models.Issue, repo
 		matcher := transfer.NewRuleMatcher(repoConfig.TransferRules)
 		if target, rule := matcher.Match(issue); target != "" {
 			// Use transferClient for transfers (may have elevated permissions)
-			executor := transfer.NewExecutor(p.transferClient, p.gh, p.vdb, p.dryRun)
+			executor := transfer.NewExecutor(p.transferClient, p.gh, p.vdb, p.cfg, p.dryRun)
 			if err := executor.Transfer(ctx, issue, target, rule); err != nil {
 				return nil, fmt.Errorf("failed to transfer issue: %w", err)
 			}
