@@ -1,0 +1,70 @@
+qdrant:
+  url: "${QDRANT_URL}"
+  api_key: "${QDRANT_API_KEY}"
+  use_grpc: true
+
+embedding:
+  primary:
+    provider: "gemini"
+    model: "gemini-embedding-001"
+    api_key: "${GEMINI_API_KEY}"
+    dimensions: 768
+
+# Issue Triage Agent Configuration
+triage:
+  enabled: true
+  llm:
+    provider: "gemini"
+    model: "gemini-1.5-flash"
+    api_key: "${GEMINI_API_KEY}"
+  classifier:
+    enabled: true
+    min_confidence: 0.7
+    labels:
+      - name: "bug"
+        keywords: ["error", "crash", "broken", "not working", "fails", "exception"]
+      - name: "enhancement"
+        keywords: ["feature", "add", "improve", "request", "support for"]
+      - name: "question"
+        keywords: ["how to", "help", "?", "wondering", "example"]
+      - name: "documentation"
+        keywords: ["docs", "readme", "typo", "docstring", "api reference"]
+      - name: "sdk/python"
+        keywords: ["python", "pip", "pypi", "import nexusflow"]
+      - name: "sdk/go"
+        keywords: ["golang", "go mod", "go get", "nexusflow.NewClient"]
+      - name: "sdk/typescript"
+        keywords: ["typescript", "npm", "yarn", "javascript", "node"]
+  quality:
+    enabled: true
+    min_score: 0.5
+    needs_info_label: "needs-info"
+  duplicate:
+    enabled: true
+    auto_close_threshold: 0.95
+    require_confirmation: false
+
+defaults:
+  similarity_threshold: 0.65
+  max_similar_to_show: 5
+  include_closed_issues: true
+  closed_issue_weight: 0.9
+  cross_repo_search: true
+  comment_cooldown_hours: 1
+  delayed_actions:
+    enabled: true
+    delay_hours: 24
+    approve_reaction: "+1"
+    cancel_reaction: "-1"
+    execute_on_approve: false
+
+repositories:
+  - org: "similigh"
+    repo: "nexusflow-sdk"
+    enabled: true
+    similarity_threshold: 0.65
+
+rate_limits:
+  github_requests_per_second: 10
+  embedding_requests_per_second: 5
+  qdrant_requests_per_second: 50
