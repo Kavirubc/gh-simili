@@ -278,7 +278,7 @@ func (d *DuplicateChecker) formatDelayedCloseComment(result *DuplicateResult, ex
 
 **React to this comment:**
 - 👍 (%s) to approve and proceed with closing
-- 👎 (%s) to cancel and add \`potential-duplicate\` label instead
+- 👎 (%s) to cancel and add potential-duplicate label instead
 
 **Deadline**: %s
 
@@ -304,7 +304,7 @@ If no reaction is provided, the issue will be closed automatically.
 func formatCloseCancelledComment() string {
 	return `✅ Auto-close has been cancelled based on your reaction.
 
-The issue will remain open and has been labeled as \`potential-duplicate\` for maintainer review.
+The issue will remain open and has been labeled as ` + "`potential-duplicate`" + ` for maintainer review.
 
 ---
 <sub>🤖 Powered by [Simili](https://github.com/Kavirubc/gh-simili)</sub>`

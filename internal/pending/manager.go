@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
-	"strings"
 	"time"
 
 	"github.com/Kavirubc/gh-simili/internal/config"
@@ -56,39 +55,13 @@ func NewManager(gh *github.Client, cfg *config.Config) *Manager {
 
 // ScheduleTransfer schedules a transfer action
 func (m *Manager) ScheduleTransfer(ctx context.Context, issue *models.Issue, targetRepo string, commentID int, delayHours int) error {
-	expiresAt := time.Now().Add(time.Duration(delayHours) * time.Hour)
-	
-	action := &PendingAction{
-		Type:        ActionTypeTransfer,
-		Org:         issue.Org,
-		Repo:        issue.Repo,
-		IssueNumber: issue.Number,
-		Target:      targetRepo,
-		CommentID:   commentID,
-		ScheduledAt: time.Now(),
-		ExpiresAt:   expiresAt,
-	}
-
-	// Add label
+	// Add label (metadata is already in comment)
 	return m.gh.AddLabels(ctx, issue.Org, issue.Repo, issue.Number, []string{LabelPendingTransfer})
 }
 
 // ScheduleClose schedules a close action
 func (m *Manager) ScheduleClose(ctx context.Context, issue *models.Issue, originalIssueURL string, commentID int, delayHours int) error {
-	expiresAt := time.Now().Add(time.Duration(delayHours) * time.Hour)
-	
-	action := &PendingAction{
-		Type:        ActionTypeClose,
-		Org:         issue.Org,
-		Repo:        issue.Repo,
-		IssueNumber: issue.Number,
-		Target:      originalIssueURL,
-		CommentID:   commentID,
-		ScheduledAt: time.Now(),
-		ExpiresAt:   expiresAt,
-	}
-
-	// Add label
+	// Add label (metadata is already in comment)
 	return m.gh.AddLabels(ctx, issue.Org, issue.Repo, issue.Number, []string{LabelPendingClose})
 }
 
