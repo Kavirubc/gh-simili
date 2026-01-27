@@ -85,8 +85,12 @@ or execute actions directly.`,
 
 			similarity := processor.NewSimilarityFinder(cfg, embedder, vdb)
 
-			// Create triage agent
-			agent := triage.NewAgent(cfg, llmProvider, similarity)
+			// Create triage agent with GitHub client for delayed actions
+			ghClient, err := github.NewClient()
+			if err != nil {
+				return fmt.Errorf("failed to create GitHub client: %w", err)
+			}
+			agent := triage.NewAgentWithGitHub(cfg, llmProvider, similarity, ghClient)
 
 			// Run triage
 			fmt.Printf("Triaging issue #%d: %s\n", issue.Number, issue.Title)

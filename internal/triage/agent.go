@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/Kavirubc/gh-simili/internal/config"
+	"github.com/Kavirubc/gh-simili/internal/github"
 	"github.com/Kavirubc/gh-simili/internal/llm"
 	"github.com/Kavirubc/gh-simili/internal/processor"
 	"github.com/Kavirubc/gh-simili/internal/vectordb"
@@ -31,6 +32,18 @@ func NewAgent(cfg *config.Config, llmProvider llm.Provider, similarity *processo
 		classifier: NewClassifier(llmProvider, &cfg.Triage.Classifier),
 		quality:    NewQualityChecker(llmProvider, &cfg.Triage.Quality),
 		duplicate:  NewDuplicateChecker(&cfg.Triage.Duplicate),
+		similarity: similarity,
+	}
+}
+
+// NewAgentWithGitHub creates a new triage agent with GitHub client for delayed actions
+func NewAgentWithGitHub(cfg *config.Config, llmProvider llm.Provider, similarity *processor.SimilarityFinder, gh *github.Client) *Agent {
+	return &Agent{
+		cfg:        cfg,
+		llm:        llmProvider,
+		classifier: NewClassifier(llmProvider, &cfg.Triage.Classifier),
+		quality:    NewQualityChecker(llmProvider, &cfg.Triage.Quality),
+		duplicate:  NewDuplicateCheckerWithDelayedActions(&cfg.Triage.Duplicate, gh, cfg),
 		similarity: similarity,
 	}
 }
