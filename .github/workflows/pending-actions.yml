@@ -1,0 +1,65 @@
+# Simili Issue Intelligence - Scheduled Pending Actions
+# This workflow runs on a schedule to process expired delayed actions:
+# - Check for expired transfer delays
+# - Check for expired duplicate close delays
+# - Execute approved actions
+# - Clean up cancelled actions
+#
+# Author: Kaviru Hapuarachchi
+# GitHub: https://github.com/Kavirubc
+# Created: 2026-01-28
+# Last Modified: 2026-01-28
+
+name: Process Pending Actions
+
+on:
+  schedule:
+    # Run every hour to check for expired pending actions
+    - cron: '0 * * * *'
+  workflow_dispatch:
+    # Allow manual triggering for testing
+
+permissions:
+  contents: read
+  issues: write
+
+# Repository-specific concurrency to prevent overlapping runs
+concurrency:
+  group: simili-pending-actions-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  process-expired:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Generate GitHub App Token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
+      - name: Process Expired Actions
+        uses: Kavirubc/gh-simili@main
+        with:
+          command: 'process-pending'
+          config_path: '.github/simili.yaml'
+          github_token: ${{ steps.app-token.outputs.token }}
+          transfer_token: ${{ secrets.TRANSFER_PAT }}
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          QDRANT_URL: ${{ secrets.QDRANT_URL }}
+          QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Pending Actions Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Checked for expired pending actions" >> $GITHUB_STEP_SUMMARY
+          echo "- Repository: ${{ github.repository }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Scheduled run completed" >> $GITHUB_STEP_SUMMARY
