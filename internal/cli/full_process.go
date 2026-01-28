@@ -12,8 +12,7 @@ import (
 
 func newFullProcessCmd() *cobra.Command {
 	var (
-		eventPath string
-		execute   bool
+		execute bool
 	)
 
 	cmd := &cobra.Command{
@@ -109,9 +108,8 @@ Without --execute, only analysis is performed (read-only mode).`,
 		},
 	}
 
-	cmd.Flags().StringVar(&eventPath, "event-path", "", "path to GitHub event JSON file")
 	cmd.Flags().BoolVar(&execute, "execute", false, "execute actions (labels, comments, transfers, closes)")
-	_ = cmd.MarkFlagRequired("event-path")
+	_ = cmd.MarkPersistentFlagRequired("event-path")
 
 	return cmd
 }

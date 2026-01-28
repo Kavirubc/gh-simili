@@ -11,7 +11,6 @@ import (
 )
 
 func newProcessCmd() *cobra.Command {
-	var eventPath string
 
 	cmd := &cobra.Command{
 		Use:   "process",
@@ -71,8 +70,7 @@ func newProcessCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&eventPath, "event-path", "", "path to GitHub event JSON file")
-	_ = cmd.MarkFlagRequired("event-path")
+	_ = cmd.MarkPersistentFlagRequired("event-path")
 
 	return cmd
 }

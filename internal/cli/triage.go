@@ -19,7 +19,6 @@ import (
 
 func newTriageCmd() *cobra.Command {
 	var (
-		eventPath  string
 		outputPath string
 		execute    bool
 	)
@@ -130,10 +129,9 @@ or execute actions directly.`,
 		},
 	}
 
-	cmd.Flags().StringVar(&eventPath, "event-path", "", "path to GitHub event JSON file")
 	cmd.Flags().StringVar(&outputPath, "output", "", "path to write triage output JSON")
 	cmd.Flags().BoolVar(&execute, "execute", false, "execute actions (default: analyze only)")
-	_ = cmd.MarkFlagRequired("event-path")
+	_ = cmd.MarkPersistentFlagRequired("event-path")
 
 	return cmd
 }
