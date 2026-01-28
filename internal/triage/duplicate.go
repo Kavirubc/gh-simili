@@ -208,6 +208,19 @@ func (d *DuplicateChecker) ScheduleClose(ctx context.Context, issue *models.Issu
 	return d.pendingManager.ScheduleClose(ctx, issue, result.Original.URL, commentID, delayHours)
 }
 
+// ScheduleCloseSilent schedules a delayed close without posting a comment
+// Used when the comment is already posted (e.g. by unified processor)
+func (d *DuplicateChecker) ScheduleCloseSilent(ctx context.Context, issue *models.Issue, originalIssueURL string, commentID int) error {
+	if d.dryRun {
+		return nil
+	}
+
+	delayHours := d.cfg.Defaults.DelayedActions.DelayHours
+
+	// Schedule the action
+	return d.pendingManager.ScheduleClose(ctx, issue, originalIssueURL, commentID, delayHours)
+}
+
 // ProcessPendingClose processes a pending close action
 func (d *DuplicateChecker) ProcessPendingClose(ctx context.Context, action *pending.PendingAction) error {
 	if d.pendingManager == nil || d.cfg == nil {

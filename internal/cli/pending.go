@@ -76,10 +76,6 @@ func newProcessPendingCmd() *cobra.Command {
 
 				// Process each action
 				for _, action := range actions {
-					if !action.IsExpired() {
-						continue // Not expired yet
-					}
-
 					fmt.Printf("Processing %s action for issue #%d...\n", action.Type, action.IssueNumber)
 
 					switch action.Type {
