@@ -236,33 +236,29 @@ func (up *UnifiedProcessor) ProcessIssue(ctx context.Context, issue *models.Issu
 	// Step 5: Check transfer rules FIRST
 	var transferTarget string
 	var transferRule *config.TransferRule
+	var skipDuplicateCheck bool
 	if len(repoConfig.TransferRules) > 0 {
 		matcher := transfer.NewRuleMatcher(repoConfig.TransferRules)
 		transferTarget, transferRule = matcher.Match(issue)
 	}
 
-	// Step 6: If transfer matched, execute transfer and skip duplicate detection
+	// Step 6: If transfer matched, store it but continue processing
 	if transferTarget != "" {
 		log.Printf("Transfer rule matched: %s -> %s", issue.Repo, transferTarget)
 		result.TransferTarget = transferTarget
-
-		if up.execute && !up.dryRun {
-			executor := transfer.NewExecutor(up.transferClient, up.gh, up.vdb, up.cfg, up.dryRun)
-			if err := executor.Transfer(ctx, issue, transferTarget, transferRule); err != nil {
-				return nil, fmt.Errorf("failed to transfer issue: %w", err)
-			}
-			result.Transferred = true
-		} else {
-			log.Printf("[DRY RUN/ANALYZE] Would transfer issue #%d to %s", issue.Number, transferTarget)
-		}
-
-		// Skip triage and indexing for transferred issues
-		return result, nil
+		skipDuplicateCheck = true // Skip duplicate detection for transfers
 	}
 
 	// Step 7: Run triage analysis (labels, quality, duplicates)
 	if up.triageAgent != nil {
-		triageResult, err := up.triageAgent.TriageWithSimilar(ctx, issue, similarIssues)
+		// Skip duplicate check if transfer matched
+		var triageResult *triage.Result
+		var err error
+		if skipDuplicateCheck {
+			triageResult, err = up.triageAgent.TriageWithoutDuplicates(ctx, issue, similarIssues)
+		} else {
+			triageResult, err = up.triageAgent.TriageWithSimilar(ctx, issue, similarIssues)
+		}
 		if err != nil {
 			log.Printf("Warning: triage failed: %v", err)
 		} else {
@@ -277,6 +273,16 @@ func (up *UnifiedProcessor) ProcessIssue(ctx context.Context, issue *models.Issu
 			log.Printf("Warning: failed to post unified comment: %v", err)
 		} else {
 			result.CommentPosted = true
+		}
+	}
+
+	// Step 8.5: Execute transfer if matched (after posting unified comment)
+	if result.TransferTarget != "" && up.execute && !up.dryRun {
+		executor := transfer.NewExecutor(up.transferClient, up.gh, up.vdb, up.cfg, up.dryRun)
+		if err := executor.Transfer(ctx, issue, result.TransferTarget, transferRule); err != nil {
+			log.Printf("Warning: failed to schedule transfer: %v", err)
+		} else {
+			result.Transferred = true
 		}
 	}
 
@@ -309,11 +315,15 @@ func (up *UnifiedProcessor) ProcessIssue(ctx context.Context, issue *models.Issu
 		}
 	}
 
-	// Step 10: Index the issue (skip if duplicate should be closed)
+	// Step 10: Index the issue (skip if duplicate should be closed OR transferred)
 	shouldIndex := true
 	if result.TriageResult != nil && result.TriageResult.Duplicate != nil && result.TriageResult.Duplicate.ShouldClose {
 		shouldIndex = false
 		log.Printf("Skipping indexing: issue will be closed as duplicate")
+	}
+	if result.TransferTarget != "" {
+		shouldIndex = false
+		log.Printf("Skipping indexing: issue will be transferred")
 	}
 
 	if shouldIndex && !up.dryRun {
@@ -340,7 +350,7 @@ func filterNonCommentActions(actions []triage.Action) []triage.Action {
 
 // buildUnifiedComment creates a single comment combining similarity and triage results
 func (up *UnifiedProcessor) buildUnifiedComment(result *UnifiedResult, similarIssues []vectordb.SearchResult, issue *models.Issue) string {
-	if len(similarIssues) == 0 && result.TriageResult == nil {
+	if len(similarIssues) == 0 && result.TriageResult == nil && result.TransferTarget == "" {
 		return ""
 	}
 
@@ -392,6 +402,11 @@ func (up *UnifiedProcessor) buildUnifiedComment(result *UnifiedResult, similarIs
 		}
 	}
 
+	// Transfer section
+	if result.TransferTarget != "" {
+		sections = append(sections, up.formatTransferSection(result.TransferTarget))
+	}
+
 	// Footer
 	sections = append(sections, "\n---\n<sub>🤖 Powered by [Simili](https://github.com/Kavirubc/gh-simili)</sub>")
 
@@ -434,6 +449,25 @@ func (up *UnifiedProcessor) formatSimilarIssuesSection(results []vectordb.Search
 	}
 
 	sb.WriteString("\nIf any of these address your problem, please let us know!")
+
+	return sb.String()
+}
+
+// formatTransferSection formats the transfer suggestion
+func (up *UnifiedProcessor) formatTransferSection(target string) string {
+	var sb strings.Builder
+	sb.WriteString("### 🔄 Transfer Suggestion\n\n")
+	sb.WriteString(fmt.Sprintf("This issue appears to belong in **%s**.\n\n", target))
+
+	if up.cfg.Defaults.DelayedActions.Enabled {
+		sb.WriteString("**This issue will be transferred in 24 hours.**\n\n")
+		sb.WriteString("**React to this comment:**\n")
+		sb.WriteString(fmt.Sprintf("- %s to approve and proceed with transfer\n", up.cfg.Defaults.DelayedActions.ApproveReaction))
+		sb.WriteString(fmt.Sprintf("- %s to cancel this transfer\n\n", up.cfg.Defaults.DelayedActions.CancelReaction))
+		sb.WriteString("If no reaction is provided, the transfer will proceed automatically.")
+	} else {
+		sb.WriteString("Transfer will be executed immediately.")
+	}
 
 	return sb.String()
 }
