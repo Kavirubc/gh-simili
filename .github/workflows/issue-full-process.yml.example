@@ -2,7 +2,9 @@ name: Issue Intelligence (Unified)
 
 on:
   issues:
-    types: [opened]
+    types: [opened, edited, closed, reopened, deleted]
+  issue_comment:
+    types: [created]
 
 permissions:
   contents: read
@@ -12,7 +14,9 @@ concurrency:
   group: issue-intelligence-${{ github.event.issue.number }}
 
 jobs:
-  process:
+  # Use full-process for new issues (unified triage + transfer + indexing)
+  unified-process:
+    if: github.event_name == 'issues' && github.event.action == 'opened'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -52,3 +56,71 @@ jobs:
           echo "## Issue Intelligence Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "✅ Unified processing completed for issue #${{ github.event.issue.number }}" >> $GITHUB_STEP_SUMMARY
+
+  # Use process for edits, closes, reopens, deletes (indexing updates only)
+  process-updates:
+    if: github.event_name == 'issues' && github.event.action != 'opened'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Build gh-simili
+        run: go build -o gh-simili ./cmd/gh-simili
+
+      - name: Write event file
+        run: |
+          cat > /tmp/event.json << 'EOF'
+          ${{ toJSON(github.event) }}
+          EOF
+
+      - name: Process Issue Updates
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          QDRANT_URL: ${{ secrets.QDRANT_URL }}
+          QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
+        run: |
+          ./gh-simili process \
+            --config .github/simili.yaml \
+            --event-path /tmp/event.json
+
+  # Process pending actions when reactions are added (for delayed transfers/closes)
+  process-reactions:
+    if: github.event_name == 'issue_comment'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Build gh-simili
+        run: go build -o gh-simili ./cmd/gh-simili
+
+      - name: Process Pending Actions
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          QDRANT_URL: ${{ secrets.QDRANT_URL }}
+          QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
+          # Optional: Use a separate token for transfers (requires elevated permissions)
+          # TRANSFER_TOKEN: ${{ secrets.TRANSFER_TOKEN }}
+        run: |
+          ./gh-simili process-pending \
+            --config .github/simili.yaml \
+            --org ${{ github.repository_owner }} \
+            --repo ${{ github.event.repository.name }}
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Pending Actions Check" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Checked for pending actions triggered by reactions" >> $GITHUB_STEP_SUMMARY
