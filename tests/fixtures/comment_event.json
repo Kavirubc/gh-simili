@@ -1,0 +1,23 @@
+{
+  "action": "created",
+  "issue": {
+    "number": 11,
+    "title": "When nesting route configurations more than 2 levels deep, the syntax highlighting breaks and everything appears as plain text.",
+    "state": "open",
+    "labels": [
+      {"name": "duplicate"},
+      {"name": "pending-close"}
+    ]
+  },
+  "comment": {
+    "id": 3809237540,
+    "body": "Approved"
+  },
+  "repository": {
+    "full_name": "similigh/nexusflow-sdk",
+    "owner": {
+      "login": "similigh"
+    },
+    "name": "nexusflow-sdk"
+  }
+}

@@ -28,6 +28,7 @@ defaults:
     approve_reaction: "+1"        # Thumbs up reaction to approve action
     cancel_reaction: "-1"         # Thumbs down reaction to cancel action
     execute_on_approve: false    # If true, execute immediately when approved
+    optimistic_transfers: false  # If true, transfer immediately but allow reverting
 
 repositories:
   - org: "myorg"

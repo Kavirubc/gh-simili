@@ -21,6 +21,12 @@ defaults:
   closed_issue_weight: 0.9
   cross_repo_search: true          # Critical: enables cross-repo similarity detection
   comment_cooldown_hours: 1
+  delayed_actions:
+    enabled: true
+    delay_hours: 24
+    approve_reaction: "+1"
+    cancel_reaction: "-1"
+    optimistic_transfers: true   # Enable immediate transfer with undo capability
 
 repositories:
   # ============================================================================
