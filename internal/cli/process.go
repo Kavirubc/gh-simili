@@ -6,16 +6,16 @@ import (
 	"os"
 
 	"github.com/Kavirubc/gh-simili/internal/config"
-	"github.com/Kavirubc/gh-simili/internal/processor"
+	"github.com/Kavirubc/gh-simili/internal/pipeline"
 	"github.com/spf13/cobra"
 )
 
 func newProcessCmd() *cobra.Command {
-
+	var execute bool
 	cmd := &cobra.Command{
 		Use:   "process",
 		Short: "Process a single issue from GitHub Action event",
-		Long:  `Process a single issue event (opened, edited, closed) for similarity detection and transfer rules.`,
+		Long:  `Process a single issue event (opened, edited, closed) using the unified pipeline.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := context.Background()
 
@@ -38,7 +38,20 @@ func newProcessCmd() *cobra.Command {
 
 			// Use separate transfer token if provided (for elevated permissions)
 			transferToken := os.Getenv("TRANSFER_TOKEN")
-			proc, err := processor.NewProcessorWithTransferToken(cfg, dryRun, transferToken)
+
+			// Process command defaults to execute=true for backward compatibility if typical usage implies it,
+			// BUT 'full-process' required --execute flag.
+			// The old 'process' command didn't have --execute flag, it just ran.
+			// However, in the legacy code `NewProcessor` accepted `dryRun`.
+			// `execute` param in UnifiedProcessor controls side-effects.
+			// To match old behavior where it DID post comments/transfers:
+			// We should set execute = true unless dry-run is set?
+			// Wait, old `process.go` didn't have `execute` flag. It relied on `dryRun`.
+			// So we should set execute=true (implied) but dryRun handles the safety.
+
+			execute = true // Implicit execution for legacy command compatibility
+
+			proc, err := pipeline.NewUnifiedProcessorWithTransferToken(cfg, dryRun, execute, transferToken)
 			if err != nil {
 				return fmt.Errorf("failed to create processor: %w", err)
 			}
@@ -49,23 +62,7 @@ func newProcessCmd() *cobra.Command {
 				return fmt.Errorf("processing failed: %w", err)
 			}
 
-			if result.Skipped {
-				fmt.Printf("Skipped: %s\n", result.SkipReason)
-				return nil
-			}
-
-			if len(result.SimilarFound) > 0 {
-				fmt.Printf("Found %d similar issues\n", len(result.SimilarFound))
-			}
-
-			if result.CommentPosted {
-				fmt.Println("Posted similarity comment")
-			}
-
-			if result.Transferred {
-				fmt.Printf("Transferred to %s\n", result.TransferTarget)
-			}
-
+			pipeline.PrintUnifiedResult(result)
 			return nil
 		},
 	}

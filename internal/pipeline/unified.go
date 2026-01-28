@@ -194,16 +194,35 @@ func (up *UnifiedProcessor) ProcessEvent(ctx context.Context, eventPath string) 
 		return nil, fmt.Errorf("failed to parse issue from event")
 	}
 
-	// Only process opened events in unified flow
-	if !event.IsOpenedEvent() {
+	// Handle different event types
+	switch {
+	case event.IsOpenedEvent():
+		return up.ProcessIssue(ctx, issue)
+	case event.IsEditedEvent(), event.IsClosedEvent(), event.IsReopenedEvent():
+		// For state changes, we just need to update the index
+		// We use a simplified context just for indexing
+		if err := up.indexer.IndexSingleIssue(ctx, issue); err != nil {
+			return nil, fmt.Errorf("failed to update index: %w", err)
+		}
+		return &core.UnifiedResult{
+			IssueNumber: issue.Number,
+			Indexed:     true,
+		}, nil
+	case event.IsDeletedEvent():
+		if err := up.indexer.DeleteIssue(ctx, issue.Org, issue.Repo, issue.Number); err != nil {
+			return nil, fmt.Errorf("failed to delete from index: %w", err)
+		}
+		return &core.UnifiedResult{
+			IssueNumber: issue.Number,
+			Indexed:     true, // Flagging as "Indexed" (updated) effectively
+		}, nil
+	default:
 		return &core.UnifiedResult{
 			IssueNumber: issue.Number,
 			Skipped:     true,
-			SkipReason:  fmt.Sprintf("action '%s' not supported in unified flow (use 'process' for edits/closes)", event.Action),
+			SkipReason:  fmt.Sprintf("action '%s' not supported", event.Action),
 		}, nil
 	}
-
-	return up.ProcessIssue(ctx, issue)
 }
 
 // ProcessIssue processes a single issue through the configured pipeline
