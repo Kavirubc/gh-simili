@@ -95,11 +95,12 @@ type DefaultsConfig struct {
 
 // DelayedActionsConfig contains settings for delayed actions
 type DelayedActionsConfig struct {
-	Enabled          bool   `yaml:"enabled"`
-	DelayHours       int    `yaml:"delay_hours"`
-	ApproveReaction  string `yaml:"approve_reaction"`
-	CancelReaction   string `yaml:"cancel_reaction"`
-	ExecuteOnApprove bool   `yaml:"execute_on_approve"`
+	Enabled             bool   `yaml:"enabled"`
+	DelayHours          int    `yaml:"delay_hours"`
+	ApproveReaction     string `yaml:"approve_reaction"`
+	CancelReaction      string `yaml:"cancel_reaction"`
+	ExecuteOnApprove    bool   `yaml:"execute_on_approve"`
+	OptimisticTransfers bool   `yaml:"optimistic_transfers"`
 }
 
 // RepositoryConfig contains settings for a specific repository

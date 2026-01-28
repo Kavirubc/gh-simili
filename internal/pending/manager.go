@@ -129,6 +129,42 @@ func (m *Manager) extractPendingAction(ctx context.Context, issue *models.Issue,
 	return nil, fmt.Errorf("pending action not found")
 }
 
+// GetPendingAction gets the pending action for a specific issue
+func (m *Manager) GetPendingAction(ctx context.Context, issue *models.Issue) (*PendingAction, error) {
+	// Check if issue has pending labels
+	hasTransfer := false
+	hasClose := false
+
+	for _, label := range issue.Labels {
+		if label == LabelPendingTransfer {
+			hasTransfer = true
+		}
+		if label == LabelPendingClose {
+			hasClose = true
+		}
+	}
+
+	if !hasTransfer && !hasClose {
+		return nil, nil // No pending action
+	}
+
+	if hasTransfer {
+		action, err := m.extractPendingAction(ctx, issue, ActionTypeTransfer)
+		if err == nil && action != nil {
+			return action, nil
+		}
+	}
+
+	if hasClose {
+		action, err := m.extractPendingAction(ctx, issue, ActionTypeClose)
+		if err == nil && action != nil {
+			return action, nil
+		}
+	}
+
+	return nil, nil
+}
+
 // FormatPendingActionMetadata formats action metadata as HTML comment
 func FormatPendingActionMetadata(action *PendingAction) (string, error) {
 	data, err := json.Marshal(action)

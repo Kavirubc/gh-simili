@@ -172,10 +172,19 @@ func (up *UnifiedProcessor) ProcessEvent(ctx context.Context, eventPath string) 
 		return nil, fmt.Errorf("failed to parse event: %w", err)
 	}
 
+	// Handle issue comment events
+	if event.IsIssueCommentEvent() {
+		issue := event.ToIssue()
+		if issue == nil {
+			return nil, fmt.Errorf("failed to parse issue from comment event")
+		}
+		return up.ProcessCommentEvent(ctx, issue)
+	}
+
 	if !event.IsIssueEvent() {
 		return &UnifiedResult{
 			Skipped:    true,
-			SkipReason: "not an issue event",
+			SkipReason: "not an issue or comment event",
 		}, nil
 	}
 
@@ -194,6 +203,82 @@ func (up *UnifiedProcessor) ProcessEvent(ctx context.Context, eventPath string) 
 	}
 
 	return up.ProcessIssue(ctx, issue)
+}
+
+// ProcessCommentEvent processes an issue comment to check for pending action validation
+func (up *UnifiedProcessor) ProcessCommentEvent(ctx context.Context, issue *models.Issue) (*UnifiedResult, error) {
+	result := &UnifiedResult{IssueNumber: issue.Number}
+
+	// Create pending manager
+	pendingMgr := pending.NewManager(up.gh, up.cfg)
+
+	// Check if this issue has a pending action
+	action, err := pendingMgr.GetPendingAction(ctx, issue)
+	if err != nil {
+		log.Printf("Error checking pending action: %v", err)
+		result.Skipped = true
+		result.SkipReason = "error checking pending action"
+		return result, nil
+	}
+
+	// Check for Revert (Optimistic Transfer Undo)
+	revertMgr := transfer.NewRevertManager(up.gh, up.cfg)
+	revertAction, err := revertMgr.CheckForRevert(ctx, issue)
+	if err != nil {
+		log.Printf("Error checking for revert: %v", err)
+	}
+
+	if revertAction != nil {
+		log.Printf("Found revert action for issue #%d, executing...", issue.Number)
+		executor := transfer.NewExecutor(up.transferClient, up.gh, up.vdb, up.cfg, up.dryRun)
+		if err := revertMgr.Revert(ctx, issue, revertAction, executor); err != nil {
+			return nil, fmt.Errorf("failed to execute revert: %w", err)
+		}
+		result.Transferred = true
+		result.ActionsExecuted = 1
+		return result, nil
+	}
+
+	if action == nil {
+		result.Skipped = true
+		result.SkipReason = "no pending action or revert found"
+		return result, nil
+	}
+
+	// Action found! Check if we should execute it
+	// We re-use logic similar to CLI pending process but for single item
+	log.Printf("Found pending %s action for issue #%d, checking status...", action.Type, issue.Number)
+
+	switch action.Type {
+	case pending.ActionTypeTransfer:
+		executor := transfer.NewExecutor(up.transferClient, up.gh, up.vdb, up.cfg, up.dryRun)
+		if err := executor.ProcessPendingTransfer(ctx, action); err != nil {
+			return nil, fmt.Errorf("failed to process pending transfer: %w", err)
+		}
+		result.Transferred = true
+		result.ActionsExecuted = 1
+
+	case pending.ActionTypeClose:
+		// We need dry-run aware checker if we want to respect dry-run
+		// But duplicate checker constructor above doesn't take dry-run, let's check
+		// Actually executor.ProcessPendingClose in CLI uses:
+		// duplicateChecker := triage.NewDuplicateCheckerWithDelayedActionsAndDryRun(&cfg.Triage.Duplicate, gh, cfg, dryRun)
+		// Let's use that one if available or similar logic.
+		// Since I don't want to import CLI package, I'll rely on available methods.
+		// Looking at imports, I can use triage package.
+
+		// The CLI uses: triage.NewDuplicateCheckerWithDelayedActionsAndDryRun
+		// Let's check if that function is exported in triage package.
+		// Assuming it is based on CLI code I saw earlier.
+
+		dChecker := triage.NewDuplicateCheckerWithDelayedActionsAndDryRun(&up.cfg.Triage.Duplicate, up.gh, up.cfg, up.dryRun)
+		if err := dChecker.ProcessPendingClose(ctx, action); err != nil {
+			return nil, fmt.Errorf("failed to process pending close: %w", err)
+		}
+		result.ActionsExecuted = 1
+	}
+
+	return result, nil
 }
 
 // ProcessIssue processes a single issue through the unified pipeline
