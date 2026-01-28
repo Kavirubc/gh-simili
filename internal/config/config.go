@@ -3,6 +3,8 @@
 // Created: 2026-01-28
 // Last Modified: 2026-01-28
 
+package config
+
 import (
 	"fmt"
 	"os"
