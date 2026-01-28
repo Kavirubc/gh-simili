@@ -1,0 +1,65 @@
+# Simili Issue Intelligence - New Issue Processing
+# This workflow handles newly opened issues with full intelligence pipeline:
+# - Similarity detection across repositories
+# - AI-powered triage and labeling
+# - Automatic transfer based on routing rules
+# - Vector database indexing
+#
+# Author: Kaviru Hapuarachchi
+# GitHub: https://github.com/Kavirubc
+# Created: 2026-01-28
+# Last Modified: 2026-01-28
+
+name: Issue Opened
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+# Concurrency group includes repository to prevent cross-repo conflicts
+concurrency:
+  group: simili-${{ github.repository }}-issue-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Generate GitHub App Token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
+      - name: Process New Issue
+        uses: Kavirubc/gh-simili@main
+        with:
+          command: 'full-process'
+          config_path: '.github/simili.yaml'
+          execute: 'true'
+          github_token: ${{ steps.app-token.outputs.token }}
+          transfer_token: ${{ secrets.TRANSFER_PAT }}
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          QDRANT_URL: ${{ secrets.QDRANT_URL }}
+          QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Issue Intelligence Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Processed issue #${{ github.event.issue.number }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Similarity detection completed" >> $GITHUB_STEP_SUMMARY
+          echo "- AI triage completed" >> $GITHUB_STEP_SUMMARY
+          echo "- Transfer rules evaluated" >> $GITHUB_STEP_SUMMARY
+          echo "- Vector database updated" >> $GITHUB_STEP_SUMMARY
