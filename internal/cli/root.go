@@ -10,7 +10,7 @@ var (
 	cfgFile   string
 	eventPath string
 	dryRun    bool
-	version   = "dev"
+	version   = "2.4"
 )
 
 var rootCmd = &cobra.Command{
