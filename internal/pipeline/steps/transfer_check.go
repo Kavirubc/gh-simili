@@ -61,7 +61,7 @@ func (s *TransferCheck) Run(ctx *core.Context) error {
 	// 3. Fallback to AI Intent Routing (Slow but Accurate)
 	if target == "" && ctx.Config.Triage.Router.Enabled {
 		router := triage.NewRouter(s.llm, ctx.Config.Repositories)
-		result, err := router.Route(ctx.Context, ctx.Issue)
+		result, err := router.Route(ctx.Ctx, ctx.Issue)
 		if err != nil {
 			log.Printf("Warning: AI routing failed: %v", err)
 		} else if result != nil && result.Confidence >= 0.8 {
@@ -113,7 +113,7 @@ func (s *TransferCheck) isReverted(ctx *core.Context) bool {
 	// 2. Check comment history (most reliable)
 	// We only check if gh client is available
 	if s.gh != nil {
-		comments, err := s.gh.ListComments(ctx.Context, ctx.Issue.Org, ctx.Issue.Repo, ctx.Issue.Number)
+		comments, err := s.gh.ListComments(ctx.Ctx, ctx.Issue.Org, ctx.Issue.Repo, ctx.Issue.Number)
 		if err == nil {
 			for i := len(comments) - 1; i >= 0; i-- {
 				if strings.Contains(comments[i].Body, revertMarker) {
