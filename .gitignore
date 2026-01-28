@@ -30,3 +30,5 @@ simili.yaml
 
 # Build artifacts
 dist/
+
+examples/
