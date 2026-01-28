@@ -260,3 +260,39 @@ func (a *Agent) TriageWithSimilar(ctx context.Context, issue *models.Issue, simi
 
 	return result, nil
 }
+
+// TriageWithoutDuplicates performs triage without duplicate detection
+// Used when transfer rule already matched - transfer takes precedence over duplicate detection
+func (a *Agent) TriageWithoutDuplicates(ctx context.Context, issue *models.Issue, similarIssues []vectordb.SearchResult) (*Result, error) {
+	result := &Result{
+		Actions: []Action{},
+	}
+
+	// Skip duplicate check - transfer takes precedence
+
+	// Classify labels
+	if a.cfg.Triage.Classifier.Enabled {
+		labels, err := a.classifier.Classify(ctx, issue)
+		if err != nil {
+			log.Printf("Warning: label classification failed: %v", err)
+		} else {
+			result.Labels = labels
+			result.Actions = append(result.Actions, a.labelsToActions(labels)...)
+		}
+	}
+
+	// Check quality
+	if a.cfg.Triage.Quality.Enabled {
+		qualityResult, err := a.quality.Check(ctx, issue)
+		if err != nil {
+			log.Printf("Warning: quality check failed: %v", err)
+		} else {
+			result.Quality = qualityResult
+			if a.quality.NeedsInfo(qualityResult) {
+				result.Actions = append(result.Actions, a.qualityToActions(qualityResult)...)
+			}
+		}
+	}
+
+	return result, nil
+}
