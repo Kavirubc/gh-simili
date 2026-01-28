@@ -1,0 +1,54 @@
+name: Issue Intelligence (Unified)
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: issue-intelligence-${{ github.event.issue.number }}
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Build gh-simili
+        run: go build -o gh-simili ./cmd/gh-simili
+
+      - name: Write event file
+        run: |
+          cat > /tmp/event.json << 'EOF'
+          ${{ toJSON(github.event) }}
+          EOF
+
+      - name: Run Unified Processing
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          QDRANT_URL: ${{ secrets.QDRANT_URL }}
+          QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
+          # Optional: Use a separate token for transfers (requires elevated permissions)
+          # TRANSFER_TOKEN: ${{ secrets.TRANSFER_TOKEN }}
+        run: |
+          ./gh-simili full-process \
+            --config .github/simili.yaml \
+            --event-path /tmp/event.json \
+            --execute
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Issue Intelligence Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Unified processing completed for issue #${{ github.event.issue.number }}" >> $GITHUB_STEP_SUMMARY
