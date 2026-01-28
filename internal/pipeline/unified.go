@@ -332,6 +332,16 @@ func (up *UnifiedProcessor) ProcessIssue(ctx context.Context, issue *models.Issu
 		}
 	}
 
+	// Step 8.5: Execute transfer if matched (after posting unified comment)
+	if result.TransferTarget != "" && up.execute && !up.dryRun {
+		executor := transfer.NewExecutor(up.transferClient, up.gh, up.vdb, up.cfg, up.dryRun)
+		if err := executor.Transfer(ctx, issue, result.TransferTarget, transferRule); err != nil {
+			log.Printf("Warning: failed to schedule transfer: %v", err)
+		} else {
+			result.Transferred = true
+		}
+	}
+
 	// Step 9: Execute triage actions (labels, close)
 	if result.TriageResult != nil && up.execute && !up.dryRun {
 		// Filter out comment actions (we already posted unified comment)
