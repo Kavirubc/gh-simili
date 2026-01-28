@@ -355,6 +355,29 @@ User creates issue in repo-A
 └───────────────────┘
 ```
 
+## Enterprise Optimization: Modular Pipeline
+
+Large organizations can optimize costs and latency by customizing the execution pipeline.
+
+### Prune Expensive Steps
+If you rely heavily on **Transfer Rules** to route issues, you can configure the pipeline to check transfers *before* performing expensive Vector DB searches or LLM calls.
+
+Add this to your repo's `.github/simili.yaml`:
+
+```yaml
+pipeline:
+  steps:
+    - gatekeeper
+    - transfer_check      # 1. Check transfers (Cheap)
+    - similarity_search   # 2. Vector Search (Expensive) - Skipped if transfer matches
+    - triage              # 3. LLM Triage (Expensive)
+    - response_builder
+    - action_executor
+    - indexer
+```
+
+This ensures that if an issue is immediately transferred (e.g., "docs" -> "docs-repo"), Simili skips the Embedding API call and Vector Search, saving API credits and time.
+
 ## Troubleshooting
 
 ### Transfer fails with "Resource not accessible"

@@ -19,6 +19,7 @@
 - **Cross-Repo Search**: Search for similar issues across all enabled repositories in your organization
 - **Issue Transfer**: Automatically route issues to the correct repository based on labels, title, or content
 - **Smart Comments**: Post helpful comments linking to related issues
+- **Modular Pipeline**: Customize workflow steps to optimize costs and latency
 - **Dual Mode**: Works as both a GitHub Action and CLI extension
 
 ## Quick Start

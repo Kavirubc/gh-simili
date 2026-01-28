@@ -16,6 +16,7 @@ type Config struct {
 	Defaults     DefaultsConfig     `yaml:"defaults"`
 	Repositories []RepositoryConfig `yaml:"repositories"`
 	RateLimits   RateLimitsConfig   `yaml:"rate_limits"`
+	Pipeline     PipelineConfig     `yaml:"pipeline"`
 }
 
 // TriageConfig contains issue triage settings
@@ -238,4 +239,9 @@ func applyDefaults(cfg *Config) {
 		cfg.Defaults.DelayedActions.CancelReaction = "-1"
 	}
 	// Enabled defaults to false (zero value) - must be explicitly enabled
+}
+
+// PipelineConfig defines the execution order of steps
+type PipelineConfig struct {
+	Steps []string `yaml:"steps"`
 }

@@ -191,6 +191,32 @@ jobs:
 | `closed_issue_weight` | Weight multiplier for closed issues (lower = less prominent) | `0.9` |
 | `comment_cooldown_hours` | Hours to wait before posting another comment on same issue | `1` |
 
+## Pipeline Configuration (Advanced)
+
+By default, Simili runs the standard pipeline:
+1. Check Repository (Gatekeeper)
+2. Ensure Vector DB (VectorDBPrep)
+3. Similarity Search
+4. Transfer Check
+5. Triage Analysis
+6. Unified Response
+7. Action Executor
+8. Indexer
+
+You can optimize or customize this flow by adding a `pipeline` section to `simili.yaml`. For example, to prioritize transfers and check triaging before similarity search:
+
+```yaml
+pipeline:
+  steps:
+    - gatekeeper
+    - transfer_check      # Run transfer logic early
+    - similarity_search   # Skipped if transfer matches
+    - triage
+    - response_builder
+    - action_executor
+    - indexer
+```
+
 ## Troubleshooting
 
 ### Workflow fails with "config file not found"
