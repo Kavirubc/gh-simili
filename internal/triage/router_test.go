@@ -7,7 +7,6 @@ package triage
 
 import (
 	"context"
-	"strings"
 	"testing"
 
 	"github.com/Kavirubc/gh-simili/internal/config"
