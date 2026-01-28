@@ -7,9 +7,10 @@ import (
 )
 
 var (
-	cfgFile string
-	dryRun  bool
-	version = "dev"
+	cfgFile   string
+	eventPath string
+	dryRun    bool
+	version   = "dev"
 )
 
 var rootCmd = &cobra.Command{
@@ -27,6 +28,7 @@ func Execute() error {
 
 func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file path")
+	rootCmd.PersistentFlags().StringVar(&eventPath, "event-path", "", "path to GitHub event JSON file")
 	rootCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "skip all writes (GitHub + Qdrant)")
 
 	rootCmd.AddCommand(newIndexCmd())
