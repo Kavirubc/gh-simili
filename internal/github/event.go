@@ -10,10 +10,11 @@ import (
 
 // Event represents a GitHub webhook event
 type Event struct {
-	Action string       `json:"action"`
-	Issue  *EventIssue  `json:"issue"`
-	Repo   *EventRepo   `json:"repository"`
-	Sender *EventSender `json:"sender"`
+	Action  string        `json:"action"`
+	Issue   *EventIssue   `json:"issue"`
+	Comment *EventComment `json:"comment"`
+	Repo    *EventRepo    `json:"repository"`
+	Sender  *EventSender  `json:"sender"`
 }
 
 // EventIssue represents issue data in an event
@@ -113,4 +114,16 @@ func (e *Event) IsDeletedEvent() bool {
 // IsReopenedEvent checks if this is an issue reopened event
 func (e *Event) IsReopenedEvent() bool {
 	return e.Action == "reopened"
+}
+
+// IsIssueCommentEvent checks if this is an issue comment event
+func (e *Event) IsIssueCommentEvent() bool {
+	return e.Comment != nil
+}
+
+// EventComment represents comment data in an event
+type EventComment struct {
+	ID   int          `json:"id"`
+	Body string       `json:"body"`
+	User *EventSender `json:"user"`
 }
