@@ -121,6 +121,7 @@ func (m *Manager) extractPendingAction(ctx context.Context, issue *models.Issue,
 		if action.Type == actionType && action.IssueNumber == issue.Number {
 			action.Org = issue.Org
 			action.Repo = issue.Repo
+			action.CommentID = comment.ID
 			return &action, nil
 		}
 	}

@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/Kavirubc/gh-simili/internal/config"
 	"github.com/Kavirubc/gh-simili/internal/embedding"
 	"github.com/Kavirubc/gh-simili/internal/github"
 	"github.com/Kavirubc/gh-simili/internal/llm"
+	"github.com/Kavirubc/gh-simili/internal/pending"
 	"github.com/Kavirubc/gh-simili/internal/processor"
 	"github.com/Kavirubc/gh-simili/internal/transfer"
 	"github.com/Kavirubc/gh-simili/internal/triage"
@@ -48,6 +50,7 @@ type UnifiedResult struct {
 	CommentPosted   bool                    `json:"comment_posted,omitempty"`
 	Indexed         bool                    `json:"indexed,omitempty"`
 	ActionsExecuted int                     `json:"actions_executed,omitempty"`
+	PendingAction   *pending.PendingAction  `json:"pending_action,omitempty"`
 }
 
 // NewUnifiedProcessor creates a new unified processor
@@ -247,6 +250,21 @@ func (up *UnifiedProcessor) ProcessIssue(ctx context.Context, issue *models.Issu
 		log.Printf("Transfer rule matched: %s -> %s", issue.Repo, transferTarget)
 		result.TransferTarget = transferTarget
 		skipDuplicateCheck = true // Skip duplicate detection for transfers
+
+		// Prepare pending action if delayed actions enabled
+		if up.cfg.Defaults.DelayedActions.Enabled {
+			delayHours := up.cfg.Defaults.DelayedActions.DelayHours
+			expiresAt := time.Now().Add(time.Duration(delayHours) * time.Hour)
+			result.PendingAction = &pending.PendingAction{
+				Type:        pending.ActionTypeTransfer,
+				Org:         issue.Org,
+				Repo:        issue.Repo,
+				IssueNumber: issue.Number,
+				Target:      transferTarget,
+				ScheduledAt: time.Now(),
+				ExpiresAt:   expiresAt,
+			}
+		}
 	}
 
 	// Step 7: Run triage analysis (labels, quality, duplicates)
@@ -263,16 +281,54 @@ func (up *UnifiedProcessor) ProcessIssue(ctx context.Context, issue *models.Issu
 			log.Printf("Warning: triage failed: %v", err)
 		} else {
 			result.TriageResult = triageResult
+
+			// Prepare pending close if duplicate and confirmed
+			if triageResult.Duplicate != nil && triageResult.Duplicate.IsDuplicate && triageResult.Duplicate.ShouldClose &&
+				up.cfg.Defaults.DelayedActions.Enabled && result.PendingAction == nil {
+				delayHours := up.cfg.Defaults.DelayedActions.DelayHours
+				expiresAt := time.Now().Add(time.Duration(delayHours) * time.Hour)
+				result.PendingAction = &pending.PendingAction{
+					Type:        pending.ActionTypeClose,
+					Org:         issue.Org,
+					Repo:        issue.Repo,
+					IssueNumber: issue.Number,
+					Target:      triageResult.Duplicate.Original.URL,
+					ScheduledAt: time.Now(),
+					ExpiresAt:   expiresAt,
+				}
+			}
 		}
 	}
 
 	// Step 8: Build and post unified comment
 	comment := up.buildUnifiedComment(result, similarIssues, issue)
+	var commentID int
 	if comment != "" && up.execute && !up.dryRun {
-		if err := up.gh.PostComment(ctx, issue.Org, issue.Repo, issue.Number, comment); err != nil {
+		id, err := up.gh.PostCommentWithID(ctx, issue.Org, issue.Repo, issue.Number, comment)
+		if err != nil {
 			log.Printf("Warning: failed to post unified comment: %v", err)
 		} else {
 			result.CommentPosted = true
+			commentID = id
+		}
+	}
+
+	// Step 8.5: Execute transfer if matched (after posting unified comment)
+	if result.TransferTarget != "" && up.execute && !up.dryRun {
+		executor := transfer.NewExecutor(up.transferClient, up.gh, up.vdb, up.cfg, up.dryRun)
+		// Use silent scheduling if unified comment was posted
+		if result.CommentPosted {
+			if err := executor.ScheduleTransferSilent(ctx, issue, result.TransferTarget, commentID); err != nil {
+				log.Printf("Warning: failed to schedule transfer: %v", err)
+			} else {
+				result.Transferred = true
+			}
+		} else {
+			if err := executor.Transfer(ctx, issue, result.TransferTarget, transferRule); err != nil {
+				log.Printf("Warning: failed to schedule transfer: %v", err)
+			} else {
+				result.Transferred = true
+			}
 		}
 	}
 
@@ -295,6 +351,18 @@ func (up *UnifiedProcessor) ProcessIssue(ctx context.Context, issue *models.Issu
 		var executor *triage.Executor
 		if up.cfg.Defaults.DelayedActions.Enabled {
 			duplicateChecker := triage.NewDuplicateCheckerWithDelayedActions(&up.cfg.Triage.Duplicate, up.gh, up.cfg)
+
+			// If it's a duplicate that should be closed, use silent scheduling if unified comment was posted
+			if result.TriageResult.Duplicate != nil && result.TriageResult.Duplicate.IsDuplicate &&
+				result.TriageResult.Duplicate.ShouldClose && result.CommentPosted {
+
+				if err := duplicateChecker.ScheduleCloseSilent(ctx, issue, result.TriageResult.Duplicate.Original.URL, commentID); err != nil {
+					log.Printf("Warning: failed to schedule close: %v", err)
+				}
+				// Remove close action from list as we handled it silently
+				actionsToExecute = filterCloseActions(actionsToExecute)
+			}
+
 			executor = triage.NewExecutorWithDelayedActions(up.gh, up.cfg, duplicateChecker, up.dryRun)
 		} else {
 			executor = triage.NewExecutor(up.gh, up.dryRun)
@@ -342,6 +410,17 @@ func filterNonCommentActions(actions []triage.Action) []triage.Action {
 	filtered := make([]triage.Action, 0, len(actions))
 	for _, a := range actions {
 		if a.Type != triage.ActionComment {
+			filtered = append(filtered, a)
+		}
+	}
+	return filtered
+}
+
+// filterCloseActions removes close actions from the list
+func filterCloseActions(actions []triage.Action) []triage.Action {
+	filtered := make([]triage.Action, 0, len(actions))
+	for _, a := range actions {
+		if a.Type != triage.ActionClose {
 			filtered = append(filtered, a)
 		}
 	}
@@ -404,11 +483,18 @@ func (up *UnifiedProcessor) buildUnifiedComment(result *UnifiedResult, similarIs
 
 	// Transfer section
 	if result.TransferTarget != "" {
-		sections = append(sections, up.formatTransferSection(result.TransferTarget))
+		sections = append(sections, up.formatTransferSection(result.TransferTarget, result.PendingAction))
 	}
 
 	// Footer
-	sections = append(sections, "\n---\n<sub>🤖 Powered by [Simili](https://github.com/Kavirubc/gh-simili)</sub>")
+	footer := "\n---\n<sub>🤖 Powered by [Simili](https://github.com/Kavirubc/gh-simili)</sub>"
+	if result.PendingAction != nil {
+		metadata, err := pending.FormatPendingActionMetadata(result.PendingAction)
+		if err == nil {
+			footer = "\n\n" + metadata + footer
+		}
+	}
+	sections = append(sections, footer)
 
 	return strings.Join(sections, "\n\n")
 }
@@ -454,16 +540,19 @@ func (up *UnifiedProcessor) formatSimilarIssuesSection(results []vectordb.Search
 }
 
 // formatTransferSection formats the transfer suggestion
-func (up *UnifiedProcessor) formatTransferSection(target string) string {
+func (up *UnifiedProcessor) formatTransferSection(target string, action *pending.PendingAction) string {
 	var sb strings.Builder
 	sb.WriteString("### 🔄 Transfer Suggestion\n\n")
 	sb.WriteString(fmt.Sprintf("This issue appears to belong in **%s**.\n\n", target))
 
-	if up.cfg.Defaults.DelayedActions.Enabled {
-		sb.WriteString("**This issue will be transferred in 24 hours.**\n\n")
+	if up.cfg.Defaults.DelayedActions.Enabled && action != nil {
+		deadline := action.ExpiresAt.Format("2006-01-02 15:04 MST")
+		delayHours := up.cfg.Defaults.DelayedActions.DelayHours
+		sb.WriteString(fmt.Sprintf("**This issue will be transferred in %d hours.**\n\n", delayHours))
 		sb.WriteString("**React to this comment:**\n")
-		sb.WriteString(fmt.Sprintf("- %s to approve and proceed with transfer\n", up.cfg.Defaults.DelayedActions.ApproveReaction))
-		sb.WriteString(fmt.Sprintf("- %s to cancel this transfer\n\n", up.cfg.Defaults.DelayedActions.CancelReaction))
+		sb.WriteString(fmt.Sprintf("- 👍 (%s) to approve and proceed with transfer\n", up.cfg.Defaults.DelayedActions.ApproveReaction))
+		sb.WriteString(fmt.Sprintf("- 👎 (%s) to cancel this transfer\n\n", up.cfg.Defaults.DelayedActions.CancelReaction))
+		sb.WriteString(fmt.Sprintf("**Deadline**: %s\n\n", deadline))
 		sb.WriteString("If no reaction is provided, the transfer will proceed automatically.")
 	} else {
 		sb.WriteString("Transfer will be executed immediately.")

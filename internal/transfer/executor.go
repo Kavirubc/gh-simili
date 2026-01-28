@@ -108,6 +108,21 @@ func (e *Executor) ScheduleTransfer(ctx context.Context, issue *models.Issue, ta
 	return e.pendingManager.ScheduleTransfer(ctx, issue, targetRepo, commentID, delayHours)
 }
 
+// ScheduleTransferSilent schedules a delayed transfer without posting a comment
+// Used when the comment is already posted (e.g. by unified processor)
+func (e *Executor) ScheduleTransferSilent(ctx context.Context, issue *models.Issue, targetRepo string, commentID int) error {
+	if e.dryRun {
+		return nil
+	}
+
+	delayHours := e.cfg.Defaults.DelayedActions.DelayHours
+	// Note: expiresAt will be recalculated, but it's fine as it's just a few seconds difference
+	// The metadata in the comment already has the expiresAt that the user sees
+
+	// Schedule the action
+	return e.pendingManager.ScheduleTransfer(ctx, issue, targetRepo, commentID, delayHours)
+}
+
 // ProcessPendingTransfer processes a pending transfer action
 func (e *Executor) ProcessPendingTransfer(ctx context.Context, action *pending.PendingAction) error {
 	// Check if already transferred
