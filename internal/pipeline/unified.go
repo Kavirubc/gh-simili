@@ -112,7 +112,7 @@ func NewUnifiedProcessorWithTransferToken(cfg *config.Config, dryRun bool, execu
 	}
 
 	// Initialize the pipeline
-	builder := NewBuilder(cfg, gh, transferClient, vdb, similarity, indexer, triageAgent, dryRun, execute)
+	builder := NewBuilder(cfg, gh, transferClient, vdb, similarity, indexer, triageAgent, llmProvider, dryRun, execute)
 	pipe, err := builder.BuildFromConfig()
 	if err != nil {
 		// Log warning and fallback to default if config invalid
