@@ -221,9 +221,27 @@ func (up *UnifiedProcessor) ProcessCommentEvent(ctx context.Context, issue *mode
 		return result, nil
 	}
 
+	// Check for Revert (Optimistic Transfer Undo)
+	revertMgr := transfer.NewRevertManager(up.gh, up.cfg)
+	revertAction, err := revertMgr.CheckForRevert(ctx, issue)
+	if err != nil {
+		log.Printf("Error checking for revert: %v", err)
+	}
+
+	if revertAction != nil {
+		log.Printf("Found revert action for issue #%d, executing...", issue.Number)
+		executor := transfer.NewExecutor(up.transferClient, up.gh, up.vdb, up.cfg, up.dryRun)
+		if err := revertMgr.Revert(ctx, issue, revertAction, executor); err != nil {
+			return nil, fmt.Errorf("failed to execute revert: %w", err)
+		}
+		result.Transferred = true
+		result.ActionsExecuted = 1
+		return result, nil
+	}
+
 	if action == nil {
 		result.Skipped = true
-		result.SkipReason = "no pending action found"
+		result.SkipReason = "no pending action or revert found"
 		return result, nil
 	}
 

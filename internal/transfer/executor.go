@@ -64,7 +64,7 @@ func (e *Executor) Transfer(ctx context.Context, issue *models.Issue, targetRepo
 	}
 
 	// Check if delayed actions are enabled
-	if e.cfg.Defaults.DelayedActions.Enabled {
+	if e.cfg.Defaults.DelayedActions.Enabled && !e.cfg.Defaults.DelayedActions.OptimisticTransfers {
 		return e.ScheduleTransfer(ctx, issue, targetRepo, rule)
 	}
 
@@ -187,7 +187,12 @@ func (e *Executor) executeTransfer(ctx context.Context, issue *models.Issue, tar
 	}
 
 	// Post transfer comment
-	comment := formatTransferComment(targetRepo, rule)
+	var comment string
+	if e.cfg.Defaults.DelayedActions.Enabled && e.cfg.Defaults.DelayedActions.OptimisticTransfers {
+		comment = formatOptimisticTransferComment(issue, targetRepo, rule, e.cfg.Defaults.DelayedActions.CancelReaction)
+	} else {
+		comment = formatTransferComment(targetRepo, rule)
+	}
 	if err := e.commentClient.PostComment(ctx, issue.Org, issue.Repo, issue.Number, comment); err != nil {
 		return fmt.Errorf("failed to post transfer comment: %w", err)
 	}
@@ -296,4 +301,29 @@ func formatMatchDescription(rule *config.TransferRule) string {
 		return "routing rules"
 	}
 	return strings.Join(parts, " + ")
+}
+
+// TransferSourceMetadata represents metadata about where a transfer came from
+type TransferSourceMetadata struct {
+	Org  string `json:"org"`
+	Repo string `json:"repo"`
+}
+
+// formatOptimisticTransferComment creates the transfer notification comment for optimistic transfers
+func formatOptimisticTransferComment(issue *models.Issue, targetRepo string, rule *config.TransferRule, cancelReaction string) string {
+	matchDesc := formatMatchDescription(rule)
+
+	// Create metadata for potential revert
+	metadata := fmt.Sprintf(`<!-- simili-transfer-source: {"org": "%s", "repo": "%s"} -->`, issue.Org, issue.Repo)
+
+	return fmt.Sprintf(`🚚 This issue is being automatically transferred to **%s** because it matches our routing rules.
+%s
+**Matched rule:** %s
+
+**Mistake?** React with 👎 (%s) to this comment to revert this transfer.
+
+The discussion will continue there. Thanks for your report!
+
+---
+<sub>🤖 Powered by [Simili](https://github.com/Kavirubc/gh-simili)</sub>`, targetRepo, metadata, matchDesc, cancelReaction)
 }
