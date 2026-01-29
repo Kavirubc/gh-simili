@@ -250,10 +250,6 @@ func applyDefaults(cfg *Config) {
 	if cfg.Defaults.DelayedActions.CancelReaction == "" {
 		cfg.Defaults.DelayedActions.CancelReaction = "-1"
 	}
-	// Router defaults
-	if !cfg.Triage.Router.Enabled {
-		cfg.Triage.Router.Enabled = false
-	}
 	// Enabled defaults to false (zero value) - must be explicitly enabled
 }
 

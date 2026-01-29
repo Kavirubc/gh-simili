@@ -59,7 +59,7 @@ func (s *TransferCheck) Run(ctx *core.Context) error {
 	}
 
 	// 3. Fallback to AI Intent Routing (Slow but Accurate)
-	if target == "" && ctx.Config.Triage.Router.Enabled {
+	if target == "" && ctx.Config.Triage.Router.Enabled && s.llm != nil {
 		router := triage.NewRouter(s.llm, ctx.Config.Repositories)
 		result, err := router.Route(ctx.Ctx, ctx.Issue)
 		if err != nil {
@@ -67,9 +67,24 @@ func (s *TransferCheck) Run(ctx *core.Context) error {
 		} else if result != nil && result.Confidence >= 0.8 {
 			// Ensure we don't route to the same repo
 			currentRepo := strings.ToLower(ctx.Issue.Org + "/" + ctx.Issue.Repo)
-			if strings.ToLower(result.TargetRepo) != currentRepo {
-				log.Printf("AI Router suggested transfer: %s -> %s (Reason: %s)", currentRepo, result.TargetRepo, result.Reason)
-				target = result.TargetRepo
+			targetRepo := strings.ToLower(result.TargetRepo)
+
+			if targetRepo != currentRepo {
+				// Validate that target repo actually exists in config
+				found := false
+				for _, r := range ctx.Config.Repositories {
+					if strings.ToLower(r.Org+"/"+r.Repo) == targetRepo {
+						found = true
+						break
+					}
+				}
+
+				if found {
+					log.Printf("AI Router suggested transfer: %s -> %s (Reason: %s)", currentRepo, result.TargetRepo, result.Reason)
+					target = result.TargetRepo
+				} else {
+					log.Printf("Warning: AI Router suggested unknown target repository: %s", result.TargetRepo)
+				}
 			}
 		}
 	}
@@ -114,7 +129,9 @@ func (s *TransferCheck) isReverted(ctx *core.Context) bool {
 	// We only check if gh client is available
 	if s.gh != nil {
 		comments, err := s.gh.ListComments(ctx.Ctx, ctx.Issue.Org, ctx.Issue.Repo, ctx.Issue.Number)
-		if err == nil {
+		if err != nil {
+			log.Printf("Warning: failed to check comments for revert marker: %v", err)
+		} else {
 			for i := len(comments) - 1; i >= 0; i-- {
 				if strings.Contains(comments[i].Body, revertMarker) {
 					return true

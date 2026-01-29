@@ -16,14 +16,15 @@ import (
 // mockLLM is a simple mock provider for testing
 type mockLLM struct {
 	response string
+	err      error
 }
 
 func (m *mockLLM) Complete(ctx context.Context, prompt string) (string, error) {
-	return m.response, nil
+	return m.response, m.err
 }
 
 func (m *mockLLM) CompleteWithSystem(ctx context.Context, system, prompt string) (string, error) {
-	return m.response, nil
+	return m.response, m.err
 }
 
 func (m *mockLLM) Close() error { return nil }
@@ -45,12 +46,12 @@ func TestRouter_Route(t *testing.T) {
 	}
 
 	tests := []struct {
-		name         string
-		llmResponse  string
-		issue        *models.Issue
-		wantTarget   string
-		wantReason   string
-		wantConf     float64
+		name        string
+		llmResponse string
+		issue       *models.Issue
+		wantTarget  string
+		wantReason  string
+		wantConf    float64
 	}{
 		{
 			name:        "routes to core",
@@ -109,6 +110,21 @@ func TestRouter_ParseRoutingResponse_EdgeCases(t *testing.T) {
 			name:     "invalid json",
 			response: "not json",
 			wantErr:  true,
+		},
+		{
+			name:     "empty response",
+			response: "",
+			wantErr:  true,
+		},
+		{
+			name:     "missing required fields",
+			response: `{"confidence": 0.9, "reason": "test"}`, // target_repo missing
+			wantErr:  false,                                   // Unmarshal will just leave TargetRepo empty
+		},
+		{
+			name:     "high confidence but out of range",
+			response: `{"target_repo": "repo", "confidence": 1.5, "reason": "test"}`,
+			wantErr:  false, // We should probably validate this in Route() or here
 		},
 	}
 
