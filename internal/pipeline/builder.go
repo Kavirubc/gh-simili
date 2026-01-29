@@ -10,6 +10,7 @@ import (
 
 	"github.com/Kavirubc/gh-simili/internal/config"
 	"github.com/Kavirubc/gh-simili/internal/github"
+	"github.com/Kavirubc/gh-simili/internal/llm"
 	"github.com/Kavirubc/gh-simili/internal/pipeline/core"
 	"github.com/Kavirubc/gh-simili/internal/pipeline/steps"
 	"github.com/Kavirubc/gh-simili/internal/processor"
@@ -26,6 +27,7 @@ type Builder struct {
 	similarity     *processor.SimilarityFinder
 	indexer        *processor.Indexer
 	triageAgent    *triage.Agent
+	llm            llm.Provider
 	dryRun         bool
 	execute        bool
 }
@@ -39,6 +41,7 @@ func NewBuilder(
 	similarity *processor.SimilarityFinder,
 	indexer *processor.Indexer,
 	triageAgent *triage.Agent,
+	llmProvider llm.Provider,
 	dryRun bool,
 	execute bool,
 ) *Builder {
@@ -50,6 +53,7 @@ func NewBuilder(
 		similarity:     similarity,
 		indexer:        indexer,
 		triageAgent:    triageAgent,
+		llm:            llmProvider,
 		dryRun:         dryRun,
 		execute:        execute,
 	}
@@ -61,7 +65,7 @@ func (b *Builder) BuildDefault() []core.Step {
 		steps.NewRepoGatekeeper(b.gh),
 		steps.NewVectorDBPrep(b.vdb, b.dryRun),
 		steps.NewSimilaritySearch(b.similarity),
-		steps.NewTransferCheck(),
+		steps.NewTransferCheck(b.llm, b.gh),
 		steps.NewTriageAnalysis(b.triageAgent),
 		steps.NewResponseBuilder(),
 		steps.NewActionExecutor(b.gh, b.transferClient, b.vdb, b.dryRun, b.execute),
@@ -96,7 +100,7 @@ func (b *Builder) createStep(name string) (core.Step, error) {
 	case "similarity_search":
 		return steps.NewSimilaritySearch(b.similarity), nil
 	case "transfer_check":
-		return steps.NewTransferCheck(), nil
+		return steps.NewTransferCheck(b.llm, b.gh), nil
 	case "triage":
 		return steps.NewTriageAnalysis(b.triageAgent), nil
 	case "response_builder":

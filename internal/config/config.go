@@ -1,3 +1,8 @@
+// Author: Kaviru Hapuarachchi
+// GitHub: [https://github.com/kavirubc](https://github.com/kavirubc)
+// Created: 2026-01-28
+// Last Modified: 2026-01-28
+
 package config
 
 import (
@@ -26,6 +31,7 @@ type TriageConfig struct {
 	Classifier ClassifierConfig `yaml:"classifier"`
 	Quality    QualityConfig    `yaml:"quality"`
 	Duplicate  DuplicateConfig  `yaml:"duplicate"`
+	Router     RouterConfig     `yaml:"router"`
 }
 
 // LLMConfig contains LLM provider settings for triage
@@ -60,6 +66,11 @@ type DuplicateConfig struct {
 	Enabled            bool    `yaml:"enabled"`
 	AutoCloseThreshold float64 `yaml:"auto_close_threshold"`
 	RequireConfirm     bool    `yaml:"require_confirmation"`
+}
+
+// RouterConfig contains AI-based issue routing settings
+type RouterConfig struct {
+	Enabled bool `yaml:"enabled"`
 }
 
 // QdrantConfig contains Qdrant connection settings
@@ -110,6 +121,7 @@ type RepositoryConfig struct {
 	Repo                string         `yaml:"repo"`
 	Enabled             bool           `yaml:"enabled"`
 	SimilarityThreshold float64        `yaml:"similarity_threshold,omitempty"`
+	Description         string         `yaml:"description,omitempty"`
 	TransferRules       []TransferRule `yaml:"transfer_rules,omitempty"`
 }
 
