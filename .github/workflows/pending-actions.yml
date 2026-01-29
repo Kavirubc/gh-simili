@@ -1,6 +1,5 @@
 # Simili Issue Intelligence - Scheduled Pending Actions
 # This workflow runs on a schedule to process expired delayed actions:
-# - Check for expired transfer delays
 # - Check for expired duplicate close delays
 # - Execute approved actions
 # - Clean up cancelled actions
@@ -49,7 +48,6 @@ jobs:
           command: 'process-pending'
           config_path: '.github/simili.yaml'
           github_token: ${{ steps.app-token.outputs.token }}
-          transfer_token: ${{ secrets.TRANSFER_PAT }}
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           QDRANT_URL: ${{ secrets.QDRANT_URL }}
