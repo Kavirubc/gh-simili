@@ -47,7 +47,6 @@ jobs:
           config_path: '.github/simili.yaml'
           execute: 'true'
           github_token: ${{ steps.app-token.outputs.token }}
-          transfer_token: ${{ secrets.TRANSFER_PAT }}
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           QDRANT_URL: ${{ secrets.QDRANT_URL }}
@@ -60,6 +59,5 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "✅ Processed issue #${{ github.event.issue.number }}" >> $GITHUB_STEP_SUMMARY
           echo "- Similarity detection completed" >> $GITHUB_STEP_SUMMARY
-          echo "- AI triage completed" >> $GITHUB_STEP_SUMMARY
-          echo "- Transfer rules evaluated" >> $GITHUB_STEP_SUMMARY
+          echo "- AI triage and labeling completed" >> $GITHUB_STEP_SUMMARY
           echo "- Vector database updated" >> $GITHUB_STEP_SUMMARY

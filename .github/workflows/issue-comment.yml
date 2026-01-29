@@ -1,8 +1,6 @@
 # Simili Issue Intelligence - Comment Processing
 # This workflow handles issue comment events:
-# - Check for revert reactions (👎 on transfer comments)
 # - Process pending delayed actions based on reactions
-# - Execute optimistic transfer reverts
 #
 # Author: Kaviru Hapuarachchi
 # GitHub: https://github.com/Kavirubc
@@ -46,7 +44,6 @@ jobs:
           config_path: '.github/simili.yaml'
           execute: 'true'
           github_token: ${{ steps.app-token.outputs.token }}
-          transfer_token: ${{ secrets.TRANSFER_PAT }}
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           QDRANT_URL: ${{ secrets.QDRANT_URL }}
@@ -58,5 +55,4 @@ jobs:
           echo "## Comment Processing Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "✅ Processed comment on issue #${{ github.event.issue.number }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Checked for revert reactions" >> $GITHUB_STEP_SUMMARY
           echo "- Evaluated pending actions" >> $GITHUB_STEP_SUMMARY
